@@ -51,20 +51,6 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
         body { background-color: var(--bg-color); color: var(--text-main); padding: 15px; max-width: 600px; margin: 0 auto; transition: background-color 0.5s; }
         
-        /* Komandos pasirinkimo langas */
-        #teamSelectionOverlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: #0f172a; z-index: 9999;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-        }
-        .team-btn {
-            width: 80%; padding: 20px; font-size: 20px; font-weight: bold; margin: 15px 0; border-radius: 12px;
-            color: white; border: none; cursor: pointer; text-transform: uppercase;
-        }
-        .btn-red { background-color: #ef4444; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
-        .btn-blue { background-color: #3b82f6; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4); }
-        .observer-btn { background-color: #475569; width: 80%; padding: 15px; margin-top: 20px; border-radius: 8px; color: white; border: none; }
-
         .header-panel { background-color: var(--card-bg); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         .score-title { font-size: 14px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
         
@@ -109,15 +95,7 @@
 </head>
 <body>
 
-    <!-- KOMANDOS PASIRINKIMAS -->
-    <div id="teamSelectionOverlay">
-        <h2 style="margin-bottom: 30px; color: white;">Pasirinkite komandą:</h2>
-        <button class="team-btn btn-red" onclick="selectTeam('red')">🔴 Raudonieji</button>
-        <button class="team-btn btn-blue" onclick="selectTeam('blue')">🔵 Mėlynieji</button>
-        <button class="observer-btn" onclick="selectTeam('admin')">👁️ Stebėtojas / Admin</button>
-    </div>
-
-    <!-- PAGRINDINIS EKRANAS -->
+    <!-- ŽAIDIMO EKRANAS (Pagal nutylėjimą paslėptas, parodomas tik su teisinga nuoroda) -->
     <div id="gameScreen" style="display: none;">
         
         <div id="toastBox" class="toast"></div>
@@ -171,7 +149,7 @@
     </div>
 
     <script>
-        // FIREBASE KONFIGŪRACIJA (Jūsų duomenys)
+        // FIREBASE KONFIGŪRACIJA
         const firebaseConfig = {
             apiKey: "AIzaSyAlcqAwCrld_zxK-X_7ETMq5iGJ2eR7S5Y",
             authDomain: "terminal-f2a5e.firebaseapp.com",
@@ -184,8 +162,10 @@
         
         let db = null; let useFirebase = false; let gameInterval = null; let html5QrcodeScanner = null; let timeMultiplier = 1;
         const GAME_DURATION = 105 * 60; // 1:45h
-        
-        let myTeam = localStorage.getItem("my_team");
+
+        // Nuskaitome komandą iš URL nuorodos parametrų
+        const urlParams = new URLSearchParams(window.location.search);
+        let myTeam = urlParams.get('team');
 
         let gameState = {
             startTime: null,
@@ -196,38 +176,33 @@
             stage3: {} 
         };
 
-        // Prisijungiame prie Firebase
-        try {
-            firebase.initializeApp(firebaseConfig); 
-            db = firebase.firestore(); 
-            useFirebase = true;
-            
-            db.collection("game").doc("current").onSnapshot(doc => { 
-                if (doc.exists) { 
-                    gameState = doc.data(); 
-                    updateUI(); 
-                    updateAdminCheatSheet();
-                } 
-            });
-        } catch (error) {
-            console.error("Firebase klaida:", error);
-            showToast("Nepavyko prisijungti prie serverio!", "error");
-        }
-
-        // Tikriname, ar jau pasirinkta rolė
-        if (myTeam) {
-            document.getElementById("teamSelectionOverlay").style.display = "none";
+        // Patikriname ar URL nurodyta teisinga komanda
+        if (!myTeam || !['red', 'blue', 'admin'].includes(myTeam)) {
+            document.body.innerHTML = "<h2 style='color:#ef4444; text-align:center; margin-top:50px;'>Klaida: Neteisinga nuoroda.</h2><p style='color:white; text-align:center;'>Prašome naudoti organizatoriaus atsiųstą komandos nuorodą.</p>";
+        } else {
             document.getElementById("gameScreen").style.display = "block";
             applyRoleView(myTeam);
-        }
 
-        function selectTeam(team) {
-            myTeam = team;
-            localStorage.setItem("my_team", team);
-            document.getElementById("teamSelectionOverlay").style.display = "none";
-            document.getElementById("gameScreen").style.display = "block";
-            applyRoleView(team);
-            updateUI();
+            // Firebase inicializacija, jei nuoroda teisinga
+            try {
+                firebase.initializeApp(firebaseConfig); 
+                db = firebase.firestore(); 
+                useFirebase = true;
+                
+                db.collection("game").doc("current").onSnapshot(doc => { 
+                    if (doc.exists) { 
+                        gameState = doc.data(); 
+                        updateUI(); 
+                        updateAdminCheatSheet();
+                    } 
+                });
+            } catch (error) {
+                console.error("Firebase klaida:", error);
+                showToast("Nepavyko prisijungti prie serverio!", "error");
+            }
+
+            // Paleidžiame pagrindinį laikrodį
+            setInterval(tick, 1000);
         }
 
         // TAIKOME VIZUALINES TEMAS IR ROLIŲ PUSLAPIUS
@@ -236,7 +211,6 @@
             const playerScanSection = document.getElementById("playerScanSection");
             const adminPanel = document.getElementById("adminPanel");
             
-            // Išvalome senas temas
             document.body.classList.remove('theme-red', 'theme-blue', 'theme-admin');
 
             if (role === 'red') { 
@@ -254,14 +228,11 @@
             else if (role === 'admin') { 
                 document.body.classList.add('theme-admin');
                 ind.innerHTML = "👁️ ADMIN VALDYMO PULTAS"; 
-                playerScanSection.style.display = "none"; // Adminas neskenuoja
-                adminPanel.style.display = "block"; // Matoma tik jam
+                playerScanSection.style.display = "none"; 
+                adminPanel.style.display = "block"; 
                 updateAdminCheatSheet();
             }
         }
-
-        // Pagrindinis laikrodis
-        setInterval(tick, 1000);
 
         function tick() {
             if (!gameState.startTime) return;
