@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strateginis Žaidimas (Bendra sinchronizacija)</title>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    
+    <style>
+        :root {
+            --bg-color: #0f172a; --card-bg: #1e293b; --accent-color: #38bdf8; 
+            --success-color: #22c55e; --warning-color: #eab308; --danger-color: #ef4444; 
+            --text-main: #f8fafc; --text-muted: #94a3b8;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); padding: 15px; max-width: 600px; margin: 0 auto; }
+        .header-panel { background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid #334155; border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 20px; }
+        .score-title { font-size: 14px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 5px; }
+        .score-value { font-size: 48px; font-weight: 800; color: var(--accent-color); }
+        .timer-container { margin-top: 15px; background: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 8px; font-size: 20px; font-weight: 600; }
+        .stage-card { background-color: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 20px; border-left: 5px solid var(--accent-color); min-height: 100px; }
+        .stage-title { font-size: 18px; font-weight: bold; margin-bottom: 8px; }
+        .stage-desc { font-size: 14px; color: var(--text-muted); line-height: 1.4; }
+        .scan-section { background-color: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 20px; text-align: center; }
+        .input-group { display: flex; margin-top: 15px; gap: 10px; }
+        input[type="text"] { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #475569; background-color: #0f172a; color: white; font-size: 16px; }
+        button { background-color: var(--accent-color); color: #0f172a; border: none; padding: 12px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; }
+        button.btn-secondary { background-color: #475569; color: white; margin-top: 10px; width: 100%; }
+        
+        .last-30min-panel { background: linear-gradient(135deg, #1e1b4b, #311042); border: 1px solid #4c1d95; border-radius: 12px; padding: 20px; margin-bottom: 20px; display: none; }
+        .panel-title { font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; color: #c084fc; border-bottom: 1px solid rgba(192, 132, 252, 0.2); padding-bottom: 5px; }
+        .point-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        .point-name { font-weight: 500; font-size: 18px; }
+        .point-status { font-size: 14px; padding: 4px 8px; border-radius: 4px; font-weight: bold; text-align: right; }
+        .status-waiting { background-color: rgba(234, 179, 8, 0.2); color: var(--warning-color); }
+        .status-ready { background-color: rgba(34, 197, 94, 0.2); color: var(--success-color); animation: pulse 1.5s infinite; }
+        .status-done { background-color: rgba(239, 68, 68, 0.2); color: var(--danger-color); text-decoration: line-through; }
+
+        .toast { padding: 12px; border-radius: 8px; margin-bottom: 15px; font-weight: 500; display: none; }
+        .toast-success { background-color: rgba(34, 197, 94, 0.2); color: var(--success-color); border: 1px solid var(--success-color); }
+        .toast-error { background-color: rgba(239, 68, 68, 0.2); color: var(--danger-color); border: 1px solid var(--danger-color); }
+        .toast-info { background-color: rgba(56, 189, 248, 0.2); color: var(--accent-color); border: 1px solid var(--accent-color); }
+        .toast-warning { background-color: rgba(234, 179, 8, 0.2); color: var(--warning-color); border: 1px solid var(--warning-color); }
+
+        .admin-panel { background-color: #020617; border: 1px dashed #334155; border-radius: 12px; padding: 15px; margin-top: 40px; }
+        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+    </style>
+</head>
+<body>
+    <div id="toastBox" class="toast"></div>
+
+    <div class="header-panel">
+        <div class="score-title">Bendra taškų suma</div>
+        <div class="score-value" id="totalScoreDisplay">0</div>
+        <div class="timer-container">Liko laiko: <span id="gameTimer">01:45:00</span></div>
+    </div>
+
+    <div class="stage-card" id="stageCard">
+        <div class="stage-title" id="stageTitle">Žaidimas neprasidėjo</div>
+        <div class="stage-desc" id="stageDesc">Laukiama žaidimo pradžios.</div>
+    </div>
+
+    <div class="last-30min-panel" id="last30MinPanel">
+        <div class="panel-title">⏱️ 3 Etapas: Bendras Žemėlapis</div>
+        <div id="pointsTrackingList">
+            <p style="color: var(--text-muted); font-size: 14px;">Nėra aktyvintų punktų šiame etape.</p>
+        </div>
+    </div>
+
+    <div class="scan-section">
+        <h3>Nuskenuokite kodą (P1 - P5)</h3>
+        <div class="input-group">
+            <input type="text" id="manualCodeInput" placeholder="Pvz: P1">
+            <button onclick="handleManualScan()">Įvesti</button>
+        </div>
+        <button class="btn-secondary" onclick="toggleCamera()">📷 Naudoti kamerą</button>
+        <div id="reader" style="display: none; margin-top: 15px;"></div>
+    </div>
+
+    <div class="admin-panel">
+        <button onclick="startGame()" style="background-color: var(--success-color); width: 100%; margin-bottom: 10px;">🚀 Paleisti Žaidimą (Generuoti Naują Seką)</button>
+        <div style="display: flex; justify-content: space-between; font-size: 13px;">
+            <span>Testavimo greitis (x60):</span>
+            <input type="checkbox" id="speedUpTime" onchange="toggleSpeedMultiplier()">
+        </div>
+    </div>
+
+    <script>
+        // Jūsų Firebase konfigūracija
+        const firebaseConfig = {
+            apiKey: "AIzaSyAlcqAwCrld_zxK-X_7ETMq5iGJ2eR7S5Y",
+            authDomain: "terminal-f2a5e.firebaseapp.com",
+            projectId: "terminal-f2a5e",
+            storageBucket: "terminal-f2a5e.firebasestorage.app",
+            messagingSenderId: "532522919385",
+            appId: "1:532522919385:web:83308e3689a0cf8cba25c8",
+            measurementId: "G-K9VC4EN457"
+        };
+        
+        let db = null; let useFirebase = false; let gameInterval = null; let html5QrcodeScanner = null; let timeMultiplier = 1;
+        const GAME_DURATION = 105 * 60; // 1:45h
+
+        let gameState = {
+            startTime: null,
+            totalScore: 0,
+            config: null, 
+            stage1Scans: {},
+            stage2Scans: { wave1: false, wave2: false, wave3: false },
+            stage3: {} 
+        };
+
+        // Firebase inicializacija
+        try {
+            firebase.initializeApp(firebaseConfig); 
+            db = firebase.firestore(); 
+            useFirebase = true;
+            console.log("Prisijungta prie Firebase!");
+            
+            db.collection("game").doc("current").onSnapshot(doc => { 
+                if (doc.exists) { 
+                    gameState = doc.data(); 
+                    updateUI(); 
+                } 
+            });
+        } catch (error) {
+            console.error("Firebase klaida:", error);
+            showToast("Nepavyko prisijungti prie serverio!", "error");
+        }
+
+        setInterval(tick, 1000);
+
+        function tick() {
+            if (!gameState.startTime) return;
+            const now = Date.now();
+            let elapsedSeconds = Math.floor((now - gameState.startTime) / 1000) * timeMultiplier;
+            const remainingSeconds = GAME_DURATION - Math.floor((Date.now() - gameState.startTime) / 1000 * timeMultiplier);
+
+            if (remainingSeconds <= 0) {
+                document.getElementById("gameTimer").innerText = "ŽAIDIMAS BAIGTAS";
+                return;
+            }
+
+            document.getElementById("gameTimer").innerText = formatTime(remainingSeconds);
+            updateStageInfo(elapsedSeconds / 60, remainingSeconds);
+            if (!useFirebase) updateUI();
+        }
+
+        function updateStageInfo(elapsedMinutes, remainingSeconds) {
+            const stageTitle = document.getElementById("stageTitle");
+            const stageDesc = document.getElementById("stageDesc");
+            
+            document.getElementById("last30MinPanel").style.display = remainingSeconds <= 35 * 60 ? "block" : "none";
+
+            const c = gameState.config;
+            if (!c) return;
+
+            if (elapsedMinutes < 40) {
+                stageTitle.innerText = "1 Etapas: Apšilimas (+10 balų)";
+                if (elapsedMinutes < 10) stageDesc.innerText = "Pirmas taškas atsiras po 10 min.";
+                else if (elapsedMinutes < 20) stageDesc.innerText = `Aktyvus taškas: ${c.s1_10}`;
+                else if (elapsedMinutes < 30) stageDesc.innerText = `Aktyvūs taškai: ${c.s1_10}, ${c.s1_20}`;
+                else stageDesc.innerText = `Aktyvūs taškai: ${c.s1_10}, ${c.s1_20}, ${c.s1_30}`;
+            } else if (elapsedMinutes >= 40 && elapsedMinutes < 70) {
+                stageTitle.innerText = "2 Etapas: Rizika (+15 balų)";
+                if (elapsedMinutes < 50) stageDesc.innerText = `Banga 1: Eikite prie ${c.w1_r} arba ${c.w1_f}. Tik vienas yra teisingas!`;
+                else if (elapsedMinutes < 60) stageDesc.innerText = `Banga 2: Eikite prie ${c.w2_r} arba ${c.w2_f}. Tik vienas yra teisingas!`;
+                else stageDesc.innerText = `Banga 3: Eikite prie ${c.w3_r} arba ${c.w3_f}. Tik vienas yra teisingas!`;
+            } else {
+                stageTitle.innerText = "3 Etapas: Lenktynės (+20 balų)";
+                stageDesc.innerText = "Atrakinkite tašką (matys abi komandos). Po 5 min. pirmas jį nuskenavęs pasiims balus, ir taškas dings!";
+            }
+        }
+
+        function processScannedCode(code) {
+            code = code.trim().toUpperCase();
+            if (!["P1", "P2", "P3", "P4", "P5"].includes(code)) {
+                showToast("Neatpažintas kodas. Turi būti P1, P2, P3, P4 arba P5.", "error"); return;
+            }
+            if (!gameState.startTime || !gameState.config) { showToast("Žaidimas dar neprasidėjo!", "error"); return; }
+
+            const elapsedMinutes = (Math.floor((Date.now() - gameState.startTime) / 1000) * timeMultiplier) / 60;
+            const c = gameState.config;
+
+            if (elapsedMinutes < 40) {
+                if (code === c.s1_10 && elapsedMinutes >= 10 && !gameState.stage1Scans[code]) { gameState.stage1Scans[code] = true; gameState.totalScore += 10; showToast(`${code} nuskenuotas! +10 balų`, "success"); }
+                else if (code === c.s1_20 && elapsedMinutes >= 20 && !gameState.stage1Scans[code]) { gameState.stage1Scans[code] = true; gameState.totalScore += 10; showToast(`${code} nuskenuotas! +10 balų`, "success"); }
+                else if (code === c.s1_30 && elapsedMinutes >= 30 && !gameState.stage1Scans[code]) { gameState.stage1Scans[code] = true; gameState.totalScore += 10; showToast(`${code} nuskenuotas! +10 balų`, "success"); }
+                else if (gameState.stage1Scans[code]) { showToast("Šį tašką jau nuskenavote šiame etape!", "warning"); }
+                else { showToast("Šis taškas dabar neaktyvus arba netinka šiam etapui.", "error"); }
+            } 
+            else if (elapsedMinutes >= 40 && elapsedMinutes < 70) {
+                if (elapsedMinutes < 50 && [c.w1_r, c.w1_f].includes(code)) handleWave("wave1", code, c.w1_r);
+                else if (elapsedMinutes >= 50 && elapsedMinutes < 60 && [c.w2_r, c.w2_f].includes(code)) handleWave("wave2", code, c.w2_r);
+                else if (elapsedMinutes >= 60 && elapsedMinutes < 70 && [c.w3_r, c.w3_f].includes(code)) handleWave("wave3", code, c.w3_r);
+                else showToast("Šis taškas dabar neaktyvus.", "error");
+            } 
+            else {
+                handleStage3Scan(code);
+            }
+            saveState();
+        }
+
+        function handleWave(waveKey, codeScanned, correctCode) {
+            if (gameState.stage2Scans[waveKey]) { showToast("Šios bangos sprendimas jau priimtas!", "warning"); return; }
+            gameState.stage2Scans[waveKey] = true;
+            if (codeScanned === correctCode) { gameState.totalScore += 15; showToast("Teisingai! +15 balų", "success"); }
+            else { showToast("Deja, netikras taškas. 0 balų.", "error"); }
+        }
+
+        function handleStage3Scan(code) {
+            const now = Date.now();
+            
+            if (!gameState.stage3[code]) {
+                gameState.stage3[code] = { start: now, verified: false };
+                showToast(`${code} ATRAKINTAS VISIEMS! Prasidėjo 5 min. atgalinis skaičiavimas.`, "info");
+            } 
+            else {
+                const scanData = gameState.stage3[code];
+                
+                if (scanData.verified) { 
+                    showToast("PER VĖLU! Šį tašką jau spėjo paimti anksčiau.", "error"); 
+                    return; 
+                }
+                
+                const secPassed = Math.floor((now - scanData.start) / 1000) * timeMultiplier;
+                if (secPassed >= 300) { 
+                    gameState.stage3[code].verified = true; 
+                    gameState.totalScore += 20;
+                    showToast(`SĖKMĖ! Jūs pirmieji paėmėte ${code}! +20 balų.`, "success");
+                } else {
+                    showToast(`Užlaikymas dar nesibaigė! Liko: ${formatTime(300 - secPassed)}`, "warning");
+                }
+            }
+        }
+
+        function updateUI() {
+            document.getElementById("totalScoreDisplay").innerText = gameState.totalScore;
+            const list = document.getElementById("pointsTrackingList");
+            const keys = Object.keys(gameState.stage3);
+            if (keys.length === 0) { list.innerHTML = '<p style="color: var(--text-muted); font-size: 14px;">Nėra aktyvintų punktų šiame etape.</p>'; return; }
+            
+            let html = "";
+            keys.forEach(k => {
+                const data = gameState.stage3[k];
+                const secPassed = Math.floor((Date.now() - data.start) / 1000) * timeMultiplier;
+                let status = "", cls = "";
+                
+                if (data.verified) { 
+                    status = "PAIMTAS (Nebegalimas)"; 
+                    cls = "status-done"; 
+                }
+                else if (secPassed >= 300) { 
+                    status = "GALIMA IMTI (Greičiau!)"; 
+                    cls = "status-ready"; 
+                }
+                else { 
+                    status = `Liko laukti: ${formatTime(300 - secPassed)}`; 
+                    cls = "status-waiting"; 
+                }
+                html += `<div class="point-row"><span class="point-name">📍 ${k}</span><span class="point-status ${cls}">${status}</span></div>`;
+            });
+            list.innerHTML = html;
+        }
+
+        function formatTime(s) {
+            if (s < 0) return "00:00";
+            const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+            const pad = n => String(n).padStart(2, '0');
+            return h > 0 ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
+        }
+
+        function showToast(msg, type) {
+            const box = document.getElementById("toastBox");
+            box.className = `toast toast-${type}`; box.innerText = msg; box.style.display = "block";
+            setTimeout(() => box.style.display = "none", 4000);
+        }
+
+        function handleManualScan() { const i = document.getElementById("manualCodeInput"); if (i.value) { processScannedCode(i.value); i.value = ""; } }
+        
+        function saveState() {
+            if (useFirebase) db.collection("game").doc("current").set(gameState);
+            else { localStorage.setItem("game_state_random_shared", JSON.stringify(gameState)); updateUI(); }
+        }
+
+        function shuffleArray(array) {
+            let arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function startGame() {
+            if (confirm("Paleisti žaidimą iš naujo? Bus sugeneruota nauja atsitiktinė punktų seka!")) {
+                const allPoints = ["P1", "P2", "P3", "P4", "P5"];
+                const s1 = shuffleArray(allPoints), w1 = shuffleArray(allPoints), w2 = shuffleArray(allPoints), w3 = shuffleArray(allPoints);
+
+                gameState = { 
+                    startTime: Date.now(), totalScore: 0, 
+                    config: {
+                        s1_10: s1[0], s1_20: s1[1], s1_30: s1[2], 
+                        w1_r: w1[0], w1_f: w1[1], w2_r: w2[0], w2_f: w2[1], w3_r: w3[0], w3_f: w3[1]
+                    },
+                    stage1Scans: {}, stage2Scans: {wave1:false, wave2:false, wave3:false}, stage3: {} 
+                };
+                showToast("Žaidimas prasidėjo! Seka sugeneruota.", "success"); 
+                saveState();
+            }
+        }
+
+        function toggleSpeedMultiplier() { timeMultiplier = document.getElementById("speedUpTime").checked ? 60 : 1; }
+        
+        function toggleCamera() {
+            const r = document.getElementById("reader");
+            if (r.style.display === "none") {
+                r.style.display = "block";
+                html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+                html5QrcodeScanner.render(txt => { processScannedCode(txt); toggleCamera(); }, err => {});
+            } else if (html5QrcodeScanner) { html5QrcodeScanner.clear().then(() => r.style.display = "none"); }
+        }
+    </script>
+</body>
+</html>
