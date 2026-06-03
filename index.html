@@ -3,41 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Strateginis Žaidimas (Bendra sinchronizacija)</title>
+    <title>Strateginis Žaidimas (Komandinės Varžybos)</title>
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- QR kodo skeneris -->
     <script src="https://unpkg.com/html5-qrcode"></script>
     
     <style>
         :root {
             --bg-color: #0f172a; --card-bg: #1e293b; --accent-color: #38bdf8; 
             --success-color: #22c55e; --warning-color: #eab308; --danger-color: #ef4444; 
+            --blue-team: #3b82f6; --red-team: #ef4444;
             --text-main: #f8fafc; --text-muted: #94a3b8;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
         body { background-color: var(--bg-color); color: var(--text-main); padding: 15px; max-width: 600px; margin: 0 auto; }
+        
+        /* Komandos pasirinkimo langas */
+        #teamSelectionOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #020617; z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .team-btn {
+            width: 80%; padding: 20px; font-size: 20px; font-weight: bold; margin: 15px 0; border-radius: 12px;
+            color: white; border: none; cursor: pointer; text-transform: uppercase;
+        }
+        .btn-red { background-color: var(--red-team); box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
+        .btn-blue { background-color: var(--blue-team); box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4); }
+        .observer-btn { background-color: #475569; width: 80%; padding: 15px; margin-top: 20px; border-radius: 8px; color: white; border: none; }
+
         .header-panel { background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid #334155; border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 20px; }
-        .score-title { font-size: 14px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 5px; }
-        .score-value { font-size: 48px; font-weight: 800; color: var(--accent-color); }
+        .score-title { font-size: 14px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
+        
+        .score-board { display: flex; justify-content: space-around; align-items: center; margin-bottom: 10px; }
+        .team-score { font-size: 36px; font-weight: 900; }
+        .score-red { color: var(--red-team); text-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
+        .score-blue { color: var(--blue-team); text-shadow: 0 0 10px rgba(59, 130, 246, 0.3); }
+        .score-divider { font-size: 24px; color: #475569; }
+
         .timer-container { margin-top: 15px; background: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 8px; font-size: 20px; font-weight: 600; }
         .stage-card { background-color: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 20px; border-left: 5px solid var(--accent-color); min-height: 100px; }
         .stage-title { font-size: 18px; font-weight: bold; margin-bottom: 8px; }
         .stage-desc { font-size: 14px; color: var(--text-muted); line-height: 1.4; }
         .scan-section { background-color: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 20px; text-align: center; }
-        .input-group { display: flex; margin-top: 15px; gap: 10px; }
-        input[type="text"] { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #475569; background-color: #0f172a; color: white; font-size: 16px; }
         button { background-color: var(--accent-color); color: #0f172a; border: none; padding: 12px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; }
         button.btn-secondary { background-color: #475569; color: white; margin-top: 10px; width: 100%; }
         
         .last-30min-panel { background: linear-gradient(135deg, #1e1b4b, #311042); border: 1px solid #4c1d95; border-radius: 12px; padding: 20px; margin-bottom: 20px; display: none; }
         .panel-title { font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; color: #c084fc; border-bottom: 1px solid rgba(192, 132, 252, 0.2); padding-bottom: 5px; }
-        .point-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        .point-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
         .point-name { font-weight: 500; font-size: 18px; }
-        .point-status { font-size: 14px; padding: 4px 8px; border-radius: 4px; font-weight: bold; text-align: right; }
+        .point-status { font-size: 13px; padding: 5px 10px; border-radius: 6px; font-weight: bold; text-align: right; }
         .status-waiting { background-color: rgba(234, 179, 8, 0.2); color: var(--warning-color); }
         .status-ready { background-color: rgba(34, 197, 94, 0.2); color: var(--success-color); animation: pulse 1.5s infinite; }
-        .status-done { background-color: rgba(239, 68, 68, 0.2); color: var(--danger-color); text-decoration: line-through; }
+        .status-done-red { background-color: rgba(239, 68, 68, 0.2); color: var(--red-team); }
+        .status-done-blue { background-color: rgba(59, 130, 246, 0.2); color: var(--blue-team); }
 
         .toast { padding: 12px; border-radius: 8px; margin-bottom: 15px; font-weight: 500; display: none; }
         .toast-success { background-color: rgba(34, 197, 94, 0.2); color: var(--success-color); border: 1px solid var(--success-color); }
@@ -45,51 +68,68 @@
         .toast-info { background-color: rgba(56, 189, 248, 0.2); color: var(--accent-color); border: 1px solid var(--accent-color); }
         .toast-warning { background-color: rgba(234, 179, 8, 0.2); color: var(--warning-color); border: 1px solid var(--warning-color); }
 
-        .admin-panel { background-color: #020617; border: 1px dashed #334155; border-radius: 12px; padding: 15px; margin-top: 40px; }
+        .admin-panel { background-color: #020617; border: 1px dashed #334155; border-radius: 12px; padding: 15px; margin-top: 40px; display: none; /* Paslėpta pagal nutylėjimą */ }
+        .my-team-indicator { text-align: center; font-size: 14px; margin-bottom: 15px; padding: 8px; border-radius: 8px; }
         @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
     </style>
 </head>
 <body>
-    <div id="toastBox" class="toast"></div>
 
-    <div class="header-panel">
-        <div class="score-title">Bendra taškų suma</div>
-        <div class="score-value" id="totalScoreDisplay">0</div>
-        <div class="timer-container">Liko laiko: <span id="gameTimer">01:45:00</span></div>
+    <!-- KOMANDOS PASIRINKIMAS -->
+    <div id="teamSelectionOverlay">
+        <h2 style="margin-bottom: 30px; color: white;">Pasirinkite komandą:</h2>
+        <button class="team-btn btn-red" onclick="selectTeam('red')">🔴 Raudonieji</button>
+        <button class="team-btn btn-blue" onclick="selectTeam('blue')">🔵 Mėlynieji</button>
+        <button class="observer-btn" onclick="selectTeam('admin')">👁️ Stebėtojas / Admin</button>
     </div>
 
-    <div class="stage-card" id="stageCard">
-        <div class="stage-title" id="stageTitle">Žaidimas neprasidėjo</div>
-        <div class="stage-desc" id="stageDesc">Laukiama žaidimo pradžios.</div>
-    </div>
+    <!-- ŽAIDIMO EKRANAS -->
+    <div id="gameScreen" style="display: none;">
+        
+        <div id="toastBox" class="toast"></div>
 
-    <div class="last-30min-panel" id="last30MinPanel">
-        <div class="panel-title">⏱️ 3 Etapas: Bendras Žemėlapis</div>
-        <div id="pointsTrackingList">
-            <p style="color: var(--text-muted); font-size: 14px;">Nėra aktyvintų punktų šiame etape.</p>
+        <div id="teamIndicator" class="my-team-indicator">Jūsų komanda: -</div>
+
+        <div class="header-panel">
+            <div class="score-title">Varžybų Rezultatas</div>
+            <div class="score-board">
+                <div class="team-score score-red" id="scoreRedDisplay">0</div>
+                <div class="score-divider">:</div>
+                <div class="team-score score-blue" id="scoreBlueDisplay">0</div>
+            </div>
+            <div class="timer-container">Liko laiko: <span id="gameTimer">01:45:00</span></div>
         </div>
-    </div>
 
-    <div class="scan-section">
-        <h3>Nuskenuokite kodą (P1 - P5)</h3>
-        <div class="input-group">
-            <input type="text" id="manualCodeInput" placeholder="Pvz: P1">
-            <button onclick="handleManualScan()">Įvesti</button>
+        <div class="stage-card" id="stageCard">
+            <div class="stage-title" id="stageTitle">Žaidimas neprasidėjo</div>
+            <div class="stage-desc" id="stageDesc">Laukiama žaidimo pradžios.</div>
         </div>
-        <button class="btn-secondary" onclick="toggleCamera()">📷 Naudoti kamerą</button>
-        <div id="reader" style="display: none; margin-top: 15px;"></div>
-    </div>
 
-    <div class="admin-panel">
-        <button onclick="startGame()" style="background-color: var(--success-color); width: 100%; margin-bottom: 10px;">🚀 Paleisti Žaidimą (Generuoti Naują Seką)</button>
-        <div style="display: flex; justify-content: space-between; font-size: 13px;">
-            <span>Testavimo greitis (x60):</span>
-            <input type="checkbox" id="speedUpTime" onchange="toggleSpeedMultiplier()">
+        <div class="last-30min-panel" id="last30MinPanel">
+            <div class="panel-title">⏱️ 3 Etapas: Bendras Žemėlapis</div>
+            <div id="pointsTrackingList">
+                <p style="color: var(--text-muted); font-size: 14px;">Nėra aktyvintų punktų šiame etape.</p>
+            </div>
+        </div>
+
+        <div class="scan-section">
+            <h3>Nuskenuokite QR kodą</h3>
+            <button class="btn-secondary" onclick="toggleCamera()" style="margin-top: 15px; padding: 15px; font-size: 18px;">📷 Įjungti kamerą</button>
+            <div id="reader" style="display: none; margin-top: 15px;"></div>
+        </div>
+
+        <!-- Ši panelė bus matoma TIK adminui -->
+        <div class="admin-panel" id="adminPanel">
+            <button onclick="startGame()" style="background-color: var(--success-color); width: 100%; margin-bottom: 10px;">🚀 Paleisti Žaidimą (Generuoti Naują Seką)</button>
+            <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                <span>Testavimo greitis (x60):</span>
+                <input type="checkbox" id="speedUpTime" onchange="toggleSpeedMultiplier()">
+            </div>
         </div>
     </div>
 
     <script>
-        // Jūsų Firebase konfigūracija
+        // FIREBASE KONFIGŪRACIJA
         const firebaseConfig = {
             apiKey: "AIzaSyAlcqAwCrld_zxK-X_7ETMq5iGJ2eR7S5Y",
             authDomain: "terminal-f2a5e.firebaseapp.com",
@@ -102,14 +142,17 @@
         
         let db = null; let useFirebase = false; let gameInterval = null; let html5QrcodeScanner = null; let timeMultiplier = 1;
         const GAME_DURATION = 105 * 60; // 1:45h
+        
+        let myTeam = localStorage.getItem("my_team"); // 'red', 'blue', arba 'admin'
 
+        // Žaidimo būsena
         let gameState = {
             startTime: null,
-            totalScore: 0,
+            scores: { red: 0, blue: 0 },
             config: null, 
-            stage1Scans: {},
-            stage2Scans: { wave1: false, wave2: false, wave3: false },
-            stage3: {} 
+            stage1Scans: { red: {}, blue: {} },
+            stage2Scans: { red: {}, blue: {} },
+            stage3: {} // P1: { start: time, verifiedBy: 'red'/'blue'/null }
         };
 
         // Firebase inicializacija
@@ -130,6 +173,47 @@
             showToast("Nepavyko prisijungti prie serverio!", "error");
         }
 
+        // Komandos pasirinkimo logika
+        if (myTeam) {
+            document.getElementById("teamSelectionOverlay").style.display = "none";
+            document.getElementById("gameScreen").style.display = "block";
+            updateTeamIndicator();
+        }
+
+        function selectTeam(team) {
+            myTeam = team;
+            localStorage.setItem("my_team", team);
+            document.getElementById("teamSelectionOverlay").style.display = "none";
+            document.getElementById("gameScreen").style.display = "block";
+            updateTeamIndicator();
+            updateUI();
+        }
+
+        function updateTeamIndicator() {
+            const ind = document.getElementById("teamIndicator");
+            const adminPanel = document.getElementById("adminPanel");
+            
+            if (myTeam === 'red') { 
+                ind.innerHTML = "Jūs žaidžiate už: <b>🔴 RAUDONUS</b>"; 
+                ind.style.backgroundColor = "rgba(239, 68, 68, 0.2)"; 
+                ind.style.color = "var(--red-team)"; 
+                adminPanel.style.display = "none"; // Slepiam nuo komandų
+            }
+            else if (myTeam === 'blue') { 
+                ind.innerHTML = "Jūs žaidžiate už: <b>🔵 MĖLYNUS</b>"; 
+                ind.style.backgroundColor = "rgba(59, 130, 246, 0.2)"; 
+                ind.style.color = "var(--blue-team)"; 
+                adminPanel.style.display = "none"; // Slepiam nuo komandų
+            }
+            else { 
+                ind.innerHTML = "Režimas: 👁️ Stebėtojas (Admin)"; 
+                ind.style.backgroundColor = "#334155"; 
+                ind.style.color = "white"; 
+                adminPanel.style.display = "block"; // Rodom tik adminui
+            }
+        }
+
+        // Pagrindinis laikrodis
         setInterval(tick, 1000);
 
         function tick() {
@@ -170,14 +254,17 @@
                 else stageDesc.innerText = `Banga 3: Eikite prie ${c.w3_r} arba ${c.w3_f}. Tik vienas yra teisingas!`;
             } else {
                 stageTitle.innerText = "3 Etapas: Lenktynės (+20 balų)";
-                stageDesc.innerText = "Atrakinkite tašką (matys abi komandos). Po 5 min. pirmas jį nuskenavęs pasiims balus, ir taškas dings!";
+                stageDesc.innerText = "Atrakinkite tašką (matys abi komandos). Po 5 min. PIRMOJI komanda nuskenavusi jį dar kartą, pasiims balus!";
             }
         }
 
         function processScannedCode(code) {
+            if (myTeam === 'admin') { showToast("Stebėtojai negali skenuoti kodų!", "error"); return; }
+            if (!myTeam) { showToast("Prašome pirmiausia pasirinkti komandą perkrovus puslapį.", "error"); return; }
+
             code = code.trim().toUpperCase();
             if (!["P1", "P2", "P3", "P4", "P5"].includes(code)) {
-                showToast("Neatpažintas kodas. Turi būti P1, P2, P3, P4 arba P5.", "error"); return;
+                showToast("Neatpažintas kodas.", "error"); return;
             }
             if (!gameState.startTime || !gameState.config) { showToast("Žaidimas dar neprasidėjo!", "error"); return; }
 
@@ -185,51 +272,61 @@
             const c = gameState.config;
 
             if (elapsedMinutes < 40) {
-                if (code === c.s1_10 && elapsedMinutes >= 10 && !gameState.stage1Scans[code]) { gameState.stage1Scans[code] = true; gameState.totalScore += 10; showToast(`${code} nuskenuotas! +10 balų`, "success"); }
-                else if (code === c.s1_20 && elapsedMinutes >= 20 && !gameState.stage1Scans[code]) { gameState.stage1Scans[code] = true; gameState.totalScore += 10; showToast(`${code} nuskenuotas! +10 balų`, "success"); }
-                else if (code === c.s1_30 && elapsedMinutes >= 30 && !gameState.stage1Scans[code]) { gameState.stage1Scans[code] = true; gameState.totalScore += 10; showToast(`${code} nuskenuotas! +10 balų`, "success"); }
-                else if (gameState.stage1Scans[code]) { showToast("Šį tašką jau nuskenavote šiame etape!", "warning"); }
+                // 1 ETAPAS
+                if (code === c.s1_10 && elapsedMinutes >= 10 && !gameState.stage1Scans[myTeam][code]) { gameState.stage1Scans[myTeam][code] = true; gameState.scores[myTeam] += 10; showToast(`${code} nuskenuotas! +10 balų jūsų komandai`, "success"); }
+                else if (code === c.s1_20 && elapsedMinutes >= 20 && !gameState.stage1Scans[myTeam][code]) { gameState.stage1Scans[myTeam][code] = true; gameState.scores[myTeam] += 10; showToast(`${code} nuskenuotas! +10 balų jūsų komandai`, "success"); }
+                else if (code === c.s1_30 && elapsedMinutes >= 30 && !gameState.stage1Scans[myTeam][code]) { gameState.stage1Scans[myTeam][code] = true; gameState.scores[myTeam] += 10; showToast(`${code} nuskenuotas! +10 balų jūsų komandai`, "success"); }
+                else if (gameState.stage1Scans[myTeam][code]) { showToast("Jūsų komanda šį tašką jau turi!", "warning"); }
                 else { showToast("Šis taškas dabar neaktyvus arba netinka šiam etapui.", "error"); }
             } 
             else if (elapsedMinutes >= 40 && elapsedMinutes < 70) {
+                // 2 ETAPAS
                 if (elapsedMinutes < 50 && [c.w1_r, c.w1_f].includes(code)) handleWave("wave1", code, c.w1_r);
                 else if (elapsedMinutes >= 50 && elapsedMinutes < 60 && [c.w2_r, c.w2_f].includes(code)) handleWave("wave2", code, c.w2_r);
                 else if (elapsedMinutes >= 60 && elapsedMinutes < 70 && [c.w3_r, c.w3_f].includes(code)) handleWave("wave3", code, c.w3_r);
                 else showToast("Šis taškas dabar neaktyvus.", "error");
             } 
             else {
+                // 3 ETAPAS
                 handleStage3Scan(code);
             }
             saveState();
         }
 
         function handleWave(waveKey, codeScanned, correctCode) {
-            if (gameState.stage2Scans[waveKey]) { showToast("Šios bangos sprendimas jau priimtas!", "warning"); return; }
-            gameState.stage2Scans[waveKey] = true;
-            if (codeScanned === correctCode) { gameState.totalScore += 15; showToast("Teisingai! +15 balų", "success"); }
-            else { showToast("Deja, netikras taškas. 0 balų.", "error"); }
+            if (gameState.stage2Scans[myTeam][waveKey]) { showToast("Jūsų komanda jau priėmė sprendimą šioje bangoje!", "warning"); return; }
+            gameState.stage2Scans[myTeam][waveKey] = true;
+            if (codeScanned === correctCode) { gameState.scores[myTeam] += 15; showToast("Teisingai! +15 balų jūsų komandai", "success"); }
+            else { showToast("Deja, pasirinkote netikrą tašką. 0 balų.", "error"); }
         }
 
         function handleStage3Scan(code) {
             const now = Date.now();
             
+            // Atrakinimas visam žaidimui
             if (!gameState.stage3[code]) {
-                gameState.stage3[code] = { start: now, verified: false };
-                showToast(`${code} ATRAKINTAS VISIEMS! Prasidėjo 5 min. atgalinis skaičiavimas.`, "info");
+                gameState.stage3[code] = { start: now, verifiedBy: null };
+                showToast(`Puiku! Jūs atrakinote ${code}. Visiems prasidėjo 5 min. užlaikymas.`, "info");
             } 
             else {
                 const scanData = gameState.stage3[code];
                 
-                if (scanData.verified) { 
-                    showToast("PER VĖLU! Šį tašką jau spėjo paimti anksčiau.", "error"); 
+                // Jei tašką jau paėmė KAŽKURI komanda
+                if (scanData.verifiedBy) { 
+                    if (scanData.verifiedBy === myTeam) {
+                        showToast("Jūsų komanda jau pasiėmė šio taško balus!", "warning");
+                    } else {
+                        showToast("PER VĖLU! Priešininkų komanda jau paėmė šį tašką.", "error");
+                    }
                     return; 
                 }
                 
+                // Taškas atrakintas, tikriname laiką
                 const secPassed = Math.floor((now - scanData.start) / 1000) * timeMultiplier;
-                if (secPassed >= 300) { 
-                    gameState.stage3[code].verified = true; 
-                    gameState.totalScore += 20;
-                    showToast(`SĖKMĖ! Jūs pirmieji paėmėte ${code}! +20 balų.`, "success");
+                if (secPassed >= 300) { // 300 sek = 5 min
+                    gameState.stage3[code].verifiedBy = myTeam; 
+                    gameState.scores[myTeam] += 20;
+                    showToast(`SĖKMĖ! Jūsų komanda pirmoji paėmė ${code}! +20 balų.`, "success");
                 } else {
                     showToast(`Užlaikymas dar nesibaigė! Liko: ${formatTime(300 - secPassed)}`, "warning");
                 }
@@ -237,10 +334,13 @@
         }
 
         function updateUI() {
-            document.getElementById("totalScoreDisplay").innerText = gameState.totalScore;
+            // Atnaujinam rezultatus švieslentėje
+            document.getElementById("scoreRedDisplay").innerText = gameState.scores.red || 0;
+            document.getElementById("scoreBlueDisplay").innerText = gameState.scores.blue || 0;
+
             const list = document.getElementById("pointsTrackingList");
             const keys = Object.keys(gameState.stage3);
-            if (keys.length === 0) { list.innerHTML = '<p style="color: var(--text-muted); font-size: 14px;">Nėra aktyvintų punktų šiame etape.</p>'; return; }
+            if (keys.length === 0) { list.innerHTML = '<p style="color: var(--text-muted); font-size: 14px;">Nėra atrakintų punktų.</p>'; return; }
             
             let html = "";
             keys.forEach(k => {
@@ -248,9 +348,10 @@
                 const secPassed = Math.floor((Date.now() - data.start) / 1000) * timeMultiplier;
                 let status = "", cls = "";
                 
-                if (data.verified) { 
-                    status = "PAIMTAS (Nebegalimas)"; 
-                    cls = "status-done"; 
+                if (data.verifiedBy) { 
+                    const isRed = data.verifiedBy === 'red';
+                    status = isRed ? "PAĖMĖ RAUDONIEJI" : "PAĖMĖ MĖLYNIEJI"; 
+                    cls = isRed ? "status-done-red" : "status-done-blue"; 
                 }
                 else if (secPassed >= 300) { 
                     status = "GALIMA IMTI (Greičiau!)"; 
@@ -278,11 +379,8 @@
             setTimeout(() => box.style.display = "none", 4000);
         }
 
-        function handleManualScan() { const i = document.getElementById("manualCodeInput"); if (i.value) { processScannedCode(i.value); i.value = ""; } }
-        
         function saveState() {
             if (useFirebase) db.collection("game").doc("current").set(gameState);
-            else { localStorage.setItem("game_state_random_shared", JSON.stringify(gameState)); updateUI(); }
         }
 
         function shuffleArray(array) {
@@ -295,17 +393,20 @@
         }
 
         function startGame() {
-            if (confirm("Paleisti žaidimą iš naujo? Bus sugeneruota nauja atsitiktinė punktų seka!")) {
+            if (confirm("Paleisti žaidimą iš naujo? Bus sugeneruota nauja seka ir ištrinti visi balai!")) {
                 const allPoints = ["P1", "P2", "P3", "P4", "P5"];
                 const s1 = shuffleArray(allPoints), w1 = shuffleArray(allPoints), w2 = shuffleArray(allPoints), w3 = shuffleArray(allPoints);
 
                 gameState = { 
-                    startTime: Date.now(), totalScore: 0, 
+                    startTime: Date.now(), 
+                    scores: { red: 0, blue: 0 }, 
                     config: {
                         s1_10: s1[0], s1_20: s1[1], s1_30: s1[2], 
                         w1_r: w1[0], w1_f: w1[1], w2_r: w2[0], w2_f: w2[1], w3_r: w3[0], w3_f: w3[1]
                     },
-                    stage1Scans: {}, stage2Scans: {wave1:false, wave2:false, wave3:false}, stage3: {} 
+                    stage1Scans: { red: {}, blue: {} }, 
+                    stage2Scans: { red: {}, blue: {} }, 
+                    stage3: {} 
                 };
                 showToast("Žaidimas prasidėjo! Seka sugeneruota.", "success"); 
                 saveState();
