@@ -5,46 +5,147 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Airsoft: Dominavimas</title>
     <style>
-        :root { --melyna: #1e3a8a; --raudona: #991b1b; --bg: #111827; --text: #f3f4f6; }
-        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); text-align: center; display: flex; flex-direction: column; height: 100vh; }
-        header { background-color: #1f2937; padding: 15px; font-size: 24px; font-weight: bold; border-bottom: 2px solid #374151; }
-        #timer { font-size: 48px; font-weight: bold; color: #fbbf24; margin-top: 10px; }
-        .scores { display: flex; justify-content: space-around; padding: 20px 0; font-size: 24px; font-weight: bold; }
+        :root { --melyna: #1e3a8a; --raudona: #991b1b; --bg: #111827; --text: #f3f4f6; --panel: #1f2937; }
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
+        
+        /* Bendrai naudojamos klasės */
+        .hidden { display: none !important; }
+        .scores { display: flex; justify-content: space-around; padding: 15px 0; font-size: 24px; font-weight: bold; background-color: var(--panel); border-bottom: 1px solid #374151; }
         .score-melyna { color: #60a5fa; }
         .score-raudona { color: #f87171; }
-        .main-content { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; }
-        .active-points-container { font-size: 28px; margin-bottom: 40px; }
-        #nfc-status { font-size: 18px; color: #9ca3af; margin-bottom: 20px; }
-        .nfc-button { background-color: #10b981; color: white; border: none; padding: 20px 40px; font-size: 24px; border-radius: 50px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); margin-top:20px;}
+
+        /* --- ŽAIDĖJO VAIZDO STILIAI --- */
+        #player-view { display: flex; flex-direction: column; height: 100%; }
+        #player-header { background-color: var(--panel); padding: 15px; font-size: 24px; font-weight: bold; border-bottom: 2px solid #374151; text-align: center; }
+        #player-timer { font-size: 48px; font-weight: bold; color: #fbbf24; margin-top: 10px; }
+        
+        #team-select-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(17, 24, 39, 0.95); z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .team-btn { padding: 20px 40px; font-size: 28px; font-weight: bold; margin: 15px; border: none; border-radius: 10px; cursor: pointer; color: white; width: 80%; }
+        .btn-melyna { background-color: var(--melyna); }
+        .btn-raudona { background-color: var(--raudona); }
+
+        .player-main-content { flex: 1; display: flex; flex-direction: column; padding: 20px; overflow-y: auto; text-align: center; }
+        .phase-title { font-size: 20px; color: #9ca3af; text-transform: uppercase; margin-bottom: 10px; }
+        .active-points-container { font-size: 28px; margin-bottom: 20px; }
+        
+        .phase4-list { text-align: left; background: var(--panel); padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+        .phase4-item { padding: 10px 0; border-bottom: 1px solid #374151; font-size: 18px; display: flex; justify-content: space-between; }
+        .phase4-item:last-child { border-bottom: none; }
+        .status-idle { color: #9ca3af; } 
+        .status-unlocking { color: #fbbf24; } 
+        .status-ready { color: #10b981; font-weight: bold; animation: pulse 1.5s infinite; } 
+        .status-claimed { color: #f87171; } 
+        
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
+        #nfc-status { font-size: 16px; color: #9ca3af; margin-bottom: 10px; }
+        .nfc-button { background-color: #10b981; color: white; border: none; padding: 20px; font-size: 22px; border-radius: 50px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); margin-top: auto; margin-bottom: 20px; }
         .nfc-button:active { transform: scale(0.95); }
+
+        /* --- ADMIN VAIZDO STILIAI --- */
+        #admin-view { overflow-y: auto; height: 100%; padding-bottom: 50px; }
+        #admin-header { background-color: var(--panel); padding: 15px; text-align: center; font-size: 20px; font-weight: bold; border-bottom: 2px solid #374151; position: sticky; top: 0; z-index: 10; }
+        #admin-timer { font-size: 40px; font-weight: bold; color: #fbbf24; margin-top: 5px; }
+        #game-status { font-size: 16px; color: #10b981; text-transform: uppercase; }
+
+        .admin-section { background-color: var(--panel); margin: 15px; padding: 15px; border-radius: 10px; border: 1px solid #374151; }
+        .section-title { font-size: 18px; color: #9ca3af; border-bottom: 1px solid #374151; padding-bottom: 10px; margin-bottom: 15px; text-transform: uppercase; }
+
+        .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .btn { padding: 15px; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; color: white; width: 100%; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+        .btn:active { transform: scale(0.97); }
+        .btn-start { background-color: #10b981; }
+        .btn-pause { background-color: #f59e0b; }
+        .btn-reset { background-color: #ef4444; grid-column: span 2; margin-top: 10px; }
+        .btn-action { background-color: #3b82f6; margin-bottom: 10px; }
+
+        .score-control { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 20px; font-weight: bold; }
+        .score-btn { width: 40px; height: 40px; font-size: 20px; border: none; border-radius: 5px; background-color: #4b5563; color: white; cursor: pointer; }
+
+        .nfc-row { display: flex; flex-direction: column; margin-bottom: 10px; }
+        .nfc-row label { font-size: 14px; margin-bottom: 5px; color: #d1d5db; }
+        .nfc-row input { padding: 10px; background-color: #111827; border: 1px solid #4b5563; color: white; border-radius: 5px; font-family: monospace; }
+        .btn-save-nfc { background-color: #8b5cf6; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-    <header>
-        LIKO LAIKO
-        <div id="timer">01:45:00</div>
-    </header>
-
-    <div class="scores">
-        <div class="score-melyna">MĖLYNA: <span id="score-melyna">0</span></div>
-        <div class="score-raudona">RAUDONA: <span id="score-raudona">0</span></div>
-    </div>
-
-    <div class="main-content">
-        <div id="points-display" class="active-points-container">
-            <p style="font-size: 18px; color: #9ca3af;">(Testavimo režimas - ekranas atsinaujins paleidus žaidimą)</p>
+    <div id="player-view" class="hidden">
+        
+        <div id="team-select-screen" class="hidden">
+            <h1 style="margin-bottom: 40px;">PASIRINKITE KOMANDĄ</h1>
+            <button class="team-btn btn-melyna" onclick="selectTeam('MELYNA')">MĖLYNA</button>
+            <button class="team-btn btn-raudona" onclick="selectTeam('RAUDONA')">RAUDONA</button>
         </div>
 
-        <div id="nfc-status">NFC paruoštas. Paspauskite mygtuką ir priglauskite tagą.</div>
-        <button id="start-nfc-btn" class="nfc-button">AKTYVUOTI NFC SKAITYTUVĄ</button>
+        <div id="player-header">
+            LIKO LAIKO
+            <div id="player-timer">01:45:00</div>
+        </div>
+
+        <div class="scores">
+            <div class="score-melyna">MĖLYNA: <span id="player-score-melyna">0</span></div>
+            <div class="score-raudona">RAUDONA: <span id="player-score-raudona">0</span></div>
+        </div>
+
+        <div class="player-main-content">
+            <div class="phase-title" id="phase-title">1 ETAPAS: PASIRUOŠIMAS</div>
+            <div id="points-display" class="active-points-container"><p>Laukiama žaidimo pradžios...</p></div>
+            <div id="nfc-status">Pasiruošta. Paspauskite mygtuką NFC aktyvavimui.</div>
+            <button id="start-nfc-btn" class="nfc-button">AKTYVUOTI NFC SKAITYTUVĄ</button>
+        </div>
     </div>
 
-    <!-- Prijungiame Firebase kaip modulį -->
+    <div id="admin-view" class="hidden">
+        <div id="admin-header">
+            BENDRA BŪSENA: <span id="game-status">SUSTABDYTAS</span>
+            <div id="admin-timer">01:45:00</div>
+        </div>
+
+        <div class="admin-section">
+            <div class="section-title">Žaidimo Laiko Valdymas</div>
+            <div class="controls-grid">
+                <button class="btn btn-start" id="btn-start">▶ START / RESUME</button>
+                <button class="btn btn-pause" id="btn-pause">⏸ PAUZĖ</button>
+                <button class="btn btn-reset" id="btn-reset">⏹ PERKRAUTI ŽAIDIMĄ</button>
+            </div>
+        </div>
+
+        <div class="admin-section">
+            <div class="section-title">Etapų Taškų Valdymas</div>
+            <button class="btn btn-action" id="btn-gen-phase2">SUGENERUOTI 1 TAŠKĄ (2 Etapas)</button>
+            <button class="btn btn-action" style="background-color: #6366f1;" id="btn-gen-phase3">SUGENERUOTI 2 TAŠKUS (3 Etapas)</button>
+            <p style="font-size: 12px; color: #9ca3af;">4 etapas aktyvuojasi žaidėjams automatiškai.</p>
+        </div>
+
+        <div class="admin-section">
+            <div class="section-title">Rankinis Balų Valdymas</div>
+            <div class="score-control score-melyna">
+                MĖLYNA: <span id="admin-score-melyna">0</span>
+                <div>
+                    <button class="score-btn" onclick="adjustScore('MELYNA', -5)">-5</button>
+                    <button class="score-btn" onclick="adjustScore('MELYNA', 5)">+5</button>
+                </div>
+            </div>
+            <div class="score-control score-raudona">
+                RAUDONA: <span id="admin-score-raudona">0</span>
+                <div>
+                    <button class="score-btn" onclick="adjustScore('RAUDONA', -5)">-5</button>
+                    <button class="score-btn" onclick="adjustScore('RAUDONA', 5)">+5</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-section">
+            <div class="section-title">NFC Kodų Priskyrimas</div>
+            <div id="nfc-inputs"></div>
+            <button class="btn btn-save-nfc" id="btn-save-nfc">IŠSAUGOTI NFC KODUS</button>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        // Pridėjome 'get', 'update' ir 'increment' duomenų įrašymui!
-        import { getDatabase, ref, onValue, get, update, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+        import { getDatabase, ref, onValue, update, set, get, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAlcqAwCrld_zxK-X_7ETMq5iGJ2eR7S5Y",
@@ -59,126 +160,338 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // Vėliau padarysime pasirinkimo langą, bet dabar testuojame kaip MĖLYNA komanda
-        let currentTeam = "MELYNA"; 
-        const totalGameTimeMs = 105 * 60 * 1000;
-        let timerInterval;
+        // --- URL PARAMETRŲ SKAITYMAS (Routing) ---
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlRole = urlParams.get('role'); // Pvz: admin
+        const urlTeam = urlParams.get('team'); // Pvz: melyna, raudona
 
-        // --- 1. TAŠKŲ ATNAUJINIMAS ---
-        const teamsRef = ref(db, 'teams');
-        onValue(teamsRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                document.getElementById('score-melyna').innerText = data.MELYNA.score;
-                document.getElementById('score-raudona').innerText = data.RAUDONA.score;
+        const isAdmin = (urlRole === 'admin');
+
+        // Priklausomai nuo URL, parodome atitinkamą vaizdą
+        if (isAdmin) {
+            document.getElementById('admin-view').classList.remove('hidden');
+        } else {
+            document.getElementById('player-view').classList.remove('hidden');
+            if (urlTeam === 'melyna') {
+                window.currentTeam = 'MELYNA';
+                document.getElementById('nfc-status').innerText = `Žaidžiate kaip MĖLYNA komanda.`;
+            } else if (urlTeam === 'raudona') {
+                window.currentTeam = 'RAUDONA';
+                document.getElementById('nfc-status').innerText = `Žaidžiate kaip RAUDONA komanda.`;
+            } else {
+                document.getElementById('team-select-screen').classList.remove('hidden');
             }
+        }
+
+        // Bendra žaidimo informacija
+        let dbState = null;
+        let timerInterval;
+        const totalGameTimeMs = 105 * 60 * 1000;
+        let currentPhase = 1;
+
+        // Komandos pasirinkimo funkcija (UI žaidėjams)
+        window.selectTeam = function(team) {
+            window.currentTeam = team;
+            document.getElementById('team-select-screen').classList.add('hidden');
+            document.getElementById('nfc-status').innerText = `Žaidžiate kaip ${team} komanda.`;
+        }
+
+        // ==========================================
+        //         BENDRA DUOMENŲ SINCHRONIZACIJA
+        // ==========================================
+        onValue(ref(db), (snapshot) => {
+            dbState = snapshot.val();
+            if (!dbState) return;
+
+            // Bendrai atnaujiname taškus (tiek Player, tiek Admin vaizdams)
+            if (isAdmin) {
+                document.getElementById('admin-score-melyna').innerText = dbState.teams.MELYNA.score;
+                document.getElementById('admin-score-raudona').innerText = dbState.teams.RAUDONA.score;
+                updateAdminNfcInputs();
+            } else {
+                document.getElementById('player-score-melyna').innerText = dbState.teams.MELYNA.score;
+                document.getElementById('player-score-raudona').innerText = dbState.teams.RAUDONA.score;
+            }
+
+            handleTimers(dbState.game_state);
         });
 
-        // --- 2. LAIKMAČIO ATNAUJINIMAS ---
-        const gameStateRef = ref(db, 'game_state');
-        onValue(gameStateRef, (snapshot) => {
-            const state = snapshot.val();
-            if(!state) return;
-
+        // ==========================================
+        //              LAIKMAČIŲ LOGIKA
+        // ==========================================
+        function handleTimers(state) {
             clearInterval(timerInterval);
 
             if (state.status === "stopped") {
-                document.getElementById('timer').innerText = "01:45:00";
+                updateTimeDisplays("01:45:00");
+                if (isAdmin) {
+                    let st = document.getElementById('game-status'); st.innerText = "SUSTABDYTAS"; st.style.color = "#ef4444";
+                } else {
+                    document.getElementById('points-display').innerHTML = "<p>Žaidimas nevyksta</p>";
+                    document.getElementById('phase-title').innerText = "LAUKIAMA STARTO";
+                }
             } 
             else if (state.status === "running") {
+                if (isAdmin) {
+                    let st = document.getElementById('game-status'); st.innerText = "ŽAIDIMAS VYKSTA"; st.style.color = "#10b981";
+                }
+                
                 timerInterval = setInterval(() => {
                     let elapsedTime = Date.now() - (state.start_time + state.total_paused_ms);
                     let timeLeft = totalGameTimeMs - elapsedTime;
+                    if(timeLeft <= 0) timeLeft = 0;
                     
-                    if(timeLeft <= 0) {
-                        timeLeft = 0;
-                        clearInterval(timerInterval);
-                    }
-                    updateTimerDisplay(timeLeft);
+                    let timeString = formatTime(timeLeft);
+                    updateTimeDisplays(timeString);
+
+                    if (!isAdmin) updatePhaseDisplay(elapsedTime, dbState);
                 }, 1000);
             }
             else if (state.status === "paused") {
                 let elapsedTime = state.pause_time - (state.start_time + state.total_paused_ms);
                 let timeLeft = totalGameTimeMs - elapsedTime;
-                updateTimerDisplay(timeLeft);
+                updateTimeDisplays(formatTime(timeLeft));
+                
+                if (isAdmin) {
+                    let st = document.getElementById('game-status'); st.innerText = "PAUZĖ"; st.style.color = "#f59e0b";
+                } else {
+                    document.getElementById('points-display').innerHTML = "<p style='color:#fbbf24'>PAUZĖ</p>";
+                }
             }
-        });
-
-        function updateTimerDisplay(ms) {
-            let totalSeconds = Math.floor(ms / 1000);
-            let hours = Math.floor(totalSeconds / 3600);
-            let minutes = Math.floor((totalSeconds % 3600) / 60);
-            let seconds = totalSeconds % 60;
-            
-            hours = String(hours).padStart(2, '0');
-            minutes = String(minutes).padStart(2, '0');
-            seconds = String(seconds).padStart(2, '0');
-            
-            document.getElementById('timer').innerText = `${hours}:${minutes}:${seconds}`;
         }
 
-        // --- 3. NFC NUSKAITYMO LOGIKA ---
-        let nfcScannerActive = false;
+        function formatTime(ms) {
+            let totalSec = Math.floor(ms / 1000);
+            let h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+            let m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+            let s = String(totalSec % 60).padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
 
-        document.getElementById('start-nfc-btn').addEventListener('click', async () => {
-            if ("NDEFReader" in window) {
-                try {
-                    const ndef = new NDEFReader();
-                    await ndef.scan();
-                    nfcScannerActive = true;
-                    
-                    document.getElementById('nfc-status').innerText = "NFC SKAITYTUVAS AKTYVUS. Priglauskite tagą.";
-                    document.getElementById('nfc-status').style.color = "#10b981";
-                    document.getElementById('start-nfc-btn').style.display = "none";
+        function updateTimeDisplays(timeStr) {
+            if (isAdmin) document.getElementById('admin-timer').innerText = timeStr;
+            else document.getElementById('player-timer').innerText = timeStr;
+        }
 
-                    ndef.addEventListener("reading", ({ serialNumber }) => {
-                        // Svarbu: NFC serijiniai numeriai gali būti skirtingo formato (pvz. 04:A1:B2... arba be dvitaškių)
-                        const cleanUid = serialNumber.toLowerCase();
-                        handleNfcScan(cleanUid);
-                    });
-                } catch (error) {
-                    document.getElementById('nfc-status').innerText = "Klaida: " + error.message;
-                    document.getElementById('nfc-status').style.color = "#ef4444";
+        // ==========================================
+        //        ŽAIDĖJO LOGIKA (UI ir NFC)
+        // ==========================================
+        if (!isAdmin) {
+            function updatePhaseDisplay(elapsedTimeMs, dbData) {
+                let minutesElapsed = elapsedTimeMs / 60000;
+                let displayHtml = "";
+
+                if (minutesElapsed < 10) {
+                    currentPhase = 1;
+                    document.getElementById('phase-title').innerText = "1 ETAPAS: PASIRUOŠIMAS";
+                    displayHtml = "<p>Užimkite pozicijas. Taškai neaktyvūs.</p>";
+                } 
+                else if (minutesElapsed >= 10 && minutesElapsed < 40) {
+                    currentPhase = 2;
+                    document.getElementById('phase-title').innerText = "2 ETAPAS: APŠILIMAS (10 tšk.)";
+                    displayHtml = generateActivePointsHtml(dbData.active_points);
                 }
-            } else {
-                document.getElementById('nfc-status').innerText = "NFC nepalaikomas! Naudokite Android Chrome.";
-                document.getElementById('nfc-status').style.color = "#ef4444";
+                else if (minutesElapsed >= 40 && minutesElapsed < 70) {
+                    currentPhase = 3;
+                    document.getElementById('phase-title').innerText = "3 ETAPAS: TAKTIKA (15 tšk.)";
+                    displayHtml = generateActivePointsHtml(dbData.active_points);
+                }
+                else {
+                    currentPhase = 4;
+                    document.getElementById('phase-title').innerText = "4 ETAPAS: DOMINAVIMAS (20 tšk.)";
+                    displayHtml = generatePhase4Html(dbData.phase4_points);
+                }
+
+                document.getElementById('points-display').innerHTML = displayHtml;
             }
-        });
 
-        async function handleNfcScan(nfcUid) {
-            try {
-                // 1. Patikriname duomenų bazėje, kokiam taškui priskirtas šis NFC
-                const mappingSnapshot = await get(ref(db, 'nfc_mapping'));
-                const mapping = mappingSnapshot.val();
-                
-                let foundPointId = null;
+            function generateActivePointsHtml(activePoints) {
+                if (!activePoints) return "<p>Laukiama naujų taškų...</p>";
+                let html = "Aktyvūs taškai:<br>";
+                for (let pointId in activePoints) {
+                    let pNum = pointId.split('_')[1];
+                    let scannedByUs = activePoints[pointId][`scanned_${window.currentTeam}`];
+                    let color = scannedByUs ? '#10b981' : '#fbbf24'; 
+                    html += `<span style="display:inline-block; margin: 10px; padding: 10px 20px; background: #374151; border: 2px solid ${color}; border-radius: 10px;">Taškas ${pNum}</span>`;
+                }
+                return html;
+            }
 
-                // Ieškome atitikmens
-                for (const [pointId, mappedUid] of Object.entries(mapping)) {
-                    if (mappedUid.toLowerCase() === nfcUid) {
-                        foundPointId = pointId;
-                        break;
+            function generatePhase4Html(p4Points) {
+                if (!p4Points) return "";
+                let html = "<div class='phase4-list'>";
+                for (let i = 1; i <= 5; i++) {
+                    let pointData = p4Points[`point_${i}`];
+                    let statusText = "", statusClass = "";
+                    if (pointData.state === "idle") {
+                        statusText = "🔒 Neaktyvuotas"; statusClass = "status-idle";
+                    } else if (pointData.state === "unlocking") {
+                        let timeLeftToUnlock = pointData.unlocksAt - Date.now();
+                        if (timeLeftToUnlock > 0) {
+                            let m = Math.floor((timeLeftToUnlock % 3600000) / 60000);
+                            let s = Math.floor((timeLeftToUnlock % 60000) / 1000);
+                            statusText = `⏳ Atsirakina po ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+                            statusClass = "status-unlocking";
+                        } else {
+                            statusText = "🟢 ATRAKINTAS"; statusClass = "status-ready";
+                        }
+                    } else if (pointData.state === "claimed") {
+                        statusText = `🚩 Užėmė ${pointData.claimedBy}`; statusClass = "status-claimed";
                     }
+                    html += `<div class="phase4-item"><span>Taškas ${i}</span> <span class="${statusClass}">${statusText}</span></div>`;
                 }
-
-                if (!foundPointId) {
-                    alert(`NFC tagas atpažintas (${nfcUid}), bet jis nepriskirtas jokiam taškui duomenų bazėje!`);
-                    return;
-                }
-
-                // 2. Jei rado tašką – TESTUOJAME!
-                alert(`Nuskenuotas ${foundPointId.toUpperCase()}! Pridedame 10 taškų.`);
-                
-                // 3. Įrašome taškus į Firebase komandai
-                const updates = {};
-                updates[`teams/${currentTeam}/score`] = increment(10);
-                
-                await update(ref(db), updates);
-
-            } catch (error) {
-                alert("Klaida susisiekiant su duomenų baze: " + error.message);
+                return html + "</div>";
             }
+
+            document.getElementById('start-nfc-btn').addEventListener('click', async () => {
+                if (!window.currentTeam) { alert("Pirma pasirinkite komandą!"); return; }
+                if ("NDEFReader" in window) {
+                    try {
+                        const ndef = new NDEFReader();
+                        await ndef.scan();
+                        document.getElementById('nfc-status').innerText = "NFC SKAITYTUVAS AKTYVUS. Glauskite telefoną.";
+                        document.getElementById('nfc-status').style.color = "#10b981";
+                        document.getElementById('start-nfc-btn').style.display = "none";
+                        ndef.addEventListener("reading", ({ serialNumber }) => {
+                            handleNfcScan(serialNumber.toLowerCase());
+                        });
+                    } catch (error) { alert("NFC Klaida: " + error.message); }
+                } else { alert("NFC nepalaikomas šioje naršyklėje."); }
+            });
+
+            async function handleNfcScan(nfcUid) {
+                if (dbState.game_state.status !== "running") { alert("Žaidimas šiuo metu sustabdytas!"); return; }
+
+                let foundPointId = null;
+                for (const [pId, mappedUid] of Object.entries(dbState.nfc_mapping)) {
+                    if (mappedUid.toLowerCase() === nfcUid) { foundPointId = pId; break; }
+                }
+
+                if (!foundPointId) { alert("Neatpažintas NFC tagas!"); return; }
+
+                const updates = {};
+                const pNum = foundPointId.split('_')[1];
+
+                if (currentPhase === 2 || currentPhase === 3) {
+                    let activeData = dbState.active_points ? dbState.active_points[foundPointId] : null;
+                    if (!activeData) { alert(`Taškas ${pNum} šiuo metu nėra aktyvus!`); return; }
+                    if (activeData.is_decoy) { alert("⚠️ NETIKRAS TAŠKAS! Čia taškų nėra!"); return; }
+                    if (activeData[`scanned_${window.currentTeam}`]) { alert("Jau pasiėmėte šį tašką!"); return; }
+
+                    let pts = (currentPhase === 2) ? 10 : 15;
+                    updates[`teams/${window.currentTeam}/score`] = increment(pts);
+                    updates[`active_points/${foundPointId}/scanned_${window.currentTeam}`] = true;
+                    await update(ref(db), updates);
+                    alert(`Puiku! Nuskenuotas Taškas ${pNum}. Gavote ${pts} tšk!`);
+                } 
+                else if (currentPhase === 4) {
+                    let p4Data = dbState.phase4_points[foundPointId];
+                    if (p4Data.state === "idle") {
+                        updates[`phase4_points/${foundPointId}/state`] = "unlocking";
+                        updates[`phase4_points/${foundPointId}/unlocksAt`] = Date.now() + (5 * 60 * 1000);
+                        await update(ref(db), updates);
+                        alert(`Taškas ${pNum} pradėtas atidaryti! Saugokite jį 5 min.`);
+                    } 
+                    else if (p4Data.state === "unlocking") {
+                        if (p4Data.unlocksAt - Date.now() > 0) alert("Dar per anksti! Taškas atsirakinėja.");
+                        else {
+                            updates[`phase4_points/${foundPointId}/state`] = "claimed";
+                            updates[`phase4_points/${foundPointId}/claimedBy`] = window.currentTeam;
+                            updates[`teams/${window.currentTeam}/score`] = increment(20);
+                            await update(ref(db), updates);
+                            alert(`PERGALĖ! Taškas ${pNum} užimtas. Gavote 20 tšk!`);
+                        }
+                    }
+                    else if (p4Data.state === "claimed") alert(`Per vėlu, užėmė ${p4Data.claimedBy}!`);
+                } else alert("Šiame etape taškų rinkti negalima.");
+            }
+        }
+
+        // ==========================================
+        //               ADMIN LOGIKA
+        // ==========================================
+        if (isAdmin) {
+            document.getElementById('btn-start').addEventListener('click', async () => {
+                let state = dbState.game_state;
+                const updates = {};
+                if (state.status === "stopped") {
+                    updates['game_state/start_time'] = Date.now();
+                    updates['game_state/total_paused_ms'] = 0;
+                    updates['game_state/status'] = "running";
+                } else if (state.status === "paused") {
+                    updates['game_state/total_paused_ms'] = state.total_paused_ms + (Date.now() - state.pause_time);
+                    updates['game_state/status'] = "running";
+                }
+                if (Object.keys(updates).length > 0) await update(ref(db), updates);
+            });
+
+            document.getElementById('btn-pause').addEventListener('click', async () => {
+                if (dbState.game_state.status === "running") {
+                    await update(ref(db), { 'game_state/status': "paused", 'game_state/pause_time': Date.now() });
+                }
+            });
+
+            document.getElementById('btn-reset').addEventListener('click', async () => {
+                if (confirm("AR TIKRAI NORITE PERKRAUTI VISĄ ŽAIDIMĄ?")) {
+                    const updates = {
+                        'game_state/status': "stopped", 'game_state/start_time': 0, 'game_state/pause_time': 0, 'game_state/total_paused_ms': 0,
+                        'teams/MELYNA/score': 0, 'teams/RAUDONA/score': 0, 'active_points': null
+                    };
+                    for (let i = 1; i <= 5; i++) {
+                        updates[`phase4_points/point_${i}/state`] = "idle";
+                        updates[`phase4_points/point_${i}/unlocksAt`] = 0;
+                        updates[`phase4_points/point_${i}/claimedBy`] = "";
+                    }
+                    await update(ref(db), updates);
+                    alert("Žaidimas perkrautas!");
+                }
+            });
+
+            window.adjustScore = async function(team, amount) { await update(ref(db), { [`teams/${team}/score`]: increment(amount) }); };
+
+            function getRandomPoints(count) {
+                return [1, 2, 3, 4, 5].sort(() => 0.5 - Math.random()).slice(0, count);
+            }
+
+            document.getElementById('btn-gen-phase2').addEventListener('click', async () => {
+                let rp = getRandomPoints(1)[0];
+                let ap = {}; ap[`point_${rp}`] = { is_decoy: false, scanned_MELYNA: false, scanned_RAUDONA: false };
+                await set(ref(db, 'active_points'), ap);
+                alert(`Sugeneruota: Taškas ${rp}`);
+            });
+
+            document.getElementById('btn-gen-phase3').addEventListener('click', async () => {
+                let sel = getRandomPoints(2);
+                let decoyIndex = Math.random() < 0.5 ? 0 : 1;
+                let ap = {};
+                ap[`point_${sel[0]}`] = { is_decoy: (decoyIndex === 0), scanned_MELYNA: false, scanned_RAUDONA: false };
+                ap[`point_${sel[1]}`] = { is_decoy: (decoyIndex === 1), scanned_MELYNA: false, scanned_RAUDONA: false };
+                await set(ref(db, 'active_points'), ap);
+                alert(`Sugeneruota: Taškai ${sel[0]} ir ${sel[1]}`);
+            });
+
+            // NFC UI generavimas ir atnaujinimas
+            const nfcContainer = document.getElementById('nfc-inputs');
+            for (let i = 1; i <= 5; i++) {
+                nfcContainer.innerHTML += `<div class="nfc-row"><label>TAŠKAS ${i} UID:</label><input type="text" id="nfc-input-${i}"></div>`;
+            }
+            
+            function updateAdminNfcInputs() {
+                for (let i = 1; i <= 5; i++) {
+                    let input = document.getElementById(`nfc-input-${i}`);
+                    if (input && document.activeElement !== input) input.value = dbState.nfc_mapping[`point_${i}`] || "";
+                }
+            }
+
+            document.getElementById('btn-save-nfc').addEventListener('click', async () => {
+                const updates = {};
+                for (let i = 1; i <= 5; i++) {
+                    let val = document.getElementById(`nfc-input-${i}`).value.trim().toLowerCase();
+                    if (val) updates[`nfc_mapping/point_${i}`] = val;
+                }
+                await update(ref(db), updates);
+                alert("NFC Kodai sėkmingai atnaujinti!");
+            });
         }
     </script>
 </body>
