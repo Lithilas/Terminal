@@ -33,12 +33,12 @@
 
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-        /* KOORDINATĖS PAGAL NUOTRAUKĄ */
-        #marker-1 { top: 21%; left: 87%; } 
-        #marker-2 { top: 32%; left: 70%; } 
-        #marker-3 { top: 48%; left: 51%; } 
-        #marker-4 { top: 59%; left: 36%; } 
-        #marker-5 { top: 73%; left: 9%; } 
+        /* KOORDINATĖS */
+        #marker-1 { top: 16%; left: 65%; } 
+        #marker-2 { top: 32%; left: 58%; } 
+        #marker-3 { top: 48%; left: 50%; } 
+        #marker-4 { top: 64%; left: 42%; } 
+        #marker-5 { top: 80%; left: 35%; } 
 
         /* VARTOTOJO SĄSAJA VIRŠ ŽEMĖLAPIO */
         .ui-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; }
@@ -67,7 +67,7 @@
         .nfc-button:active { transform: scale(0.95); }
 
         /* --- ADMIN VAIZDO STILIAI --- */
-        #admin-view { overflow-y: auto; height: 100%; padding-bottom: 50px; background-color: var(--bg); position: absolute; top: 0; left: 0; width: 100%; z-index: 50;}
+        #admin-view { overflow-y: auto; height: 100%; padding-bottom: 50px; }
         #admin-header { background-color: var(--panel); padding: 15px; text-align: center; font-size: 20px; font-weight: bold; border-bottom: 2px solid #374151; position: sticky; top: 0; z-index: 10; }
         #admin-timer { font-size: 40px; font-weight: bold; color: #fbbf24; margin-top: 5px; }
         #game-status { font-size: 16px; color: #10b981; text-transform: uppercase; }
@@ -232,7 +232,7 @@
             document.getElementById('nfc-status').innerText = `Žaidžiate kaip ${team} komanda.`;
         }
 
-        // Duomenų sinchronizavimas ir ŽEMĖLAPIO ATNAUJINIMAS
+        // Duomenų sinchronizavimas
         onValue(ref(db), (snapshot) => {
             dbState = snapshot.val();
             if (!dbState) return;
@@ -250,7 +250,6 @@
             handleTimers(dbState.game_state);
         });
 
-        // Būsenų atnaujinimas žemėlapyje
         function updateMapMarkers(dbData) {
             for(let i=1; i<=5; i++) {
                 let marker = document.getElementById(`marker-${i}`);
@@ -335,7 +334,13 @@
                 displayHtml = generatePhase4Html(dbData.phase4_points);
             }
             
-            document.getElementById('points-display').innerHTML = displayHtml;
+            let pointsContainer = document.getElementById('points-display');
+            pointsContainer.innerHTML = displayHtml;
+            if (currentPhase === 4) {
+                pointsContainer.className = "";
+            } else {
+                pointsContainer.className = "active-points-container";
+            }
         }
 
         function generateActivePointsHtml(activePoints) {
@@ -466,18 +471,22 @@
         //               ŽAIDĖJO SKENAVIMAS
         // ==========================================
         if (!isAdmin) {
+            let playerNdef = null; // Pridėtas kintamasis apsaugai nuo dubliavimosi
+
             document.getElementById('start-nfc-btn').addEventListener('click', async () => {
                 if (!window.currentTeam) { alert("Pirma pasirinkite komandą!"); return; }
                 if ("NDEFReader" in window) {
                     try {
-                        const ndef = new NDEFReader();
-                        await ndef.scan();
+                        if (!playerNdef) {
+                            playerNdef = new NDEFReader();
+                            await playerNdef.scan();
+                            playerNdef.addEventListener("reading", ({ serialNumber }) => {
+                                handleNfcScan(serialNumber.toLowerCase());
+                            });
+                        }
                         document.getElementById('nfc-status').innerText = "NFC SKAITYTUVAS AKTYVUS. Glauskite telefoną.";
                         document.getElementById('nfc-status').style.color = "#10b981";
-                        document.getElementById('start-nfc-btn').style.display = "none";
-                        ndef.addEventListener("reading", ({ serialNumber }) => {
-                            handleNfcScan(serialNumber.toLowerCase());
-                        });
+                        // PATAISYTA: Pašalinta eilutė, kuri paslėpdavo mygtuką!
                     } catch (error) { alert("NFC Klaida: " + error.message); }
                 } else { alert("NFC nepalaikomas šioje naršyklėje."); }
             });
