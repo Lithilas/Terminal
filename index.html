@@ -23,13 +23,15 @@
         .btn-melyna { background-color: var(--melyna); }
         .btn-raudona { background-color: var(--raudona); }
 
-        .player-main-content { flex: 1; display: flex; flex-direction: column; padding: 20px; overflow-y: auto; text-align: center; }
-        .phase-title { font-size: 20px; color: #9ca3af; text-transform: uppercase; margin-bottom: 10px; }
-        .active-points-container { font-size: 28px; margin-bottom: 20px; }
+        /* Pagrindinis slenkamas turinys */
+        .player-main-content { flex: 1; display: flex; flex-direction: column; padding: 15px; overflow-y: auto; text-align: center; }
+        .phase-title { font-size: 20px; color: #9ca3af; text-transform: uppercase; margin-bottom: 10px; font-weight: bold; }
+        .active-points-container { font-size: 20px; margin-bottom: 15px; }
         
-        .phase4-list { text-align: left; background: var(--panel); padding: 15px; border-radius: 10px; margin-bottom: 20px; }
-        .phase4-item { padding: 10px 0; border-bottom: 1px solid #374151; font-size: 18px; display: flex; justify-content: space-between; }
+        .phase4-list { text-align: left; background: var(--panel); padding: 10px; border-radius: 10px; margin-bottom: 15px; }
+        .phase4-item { padding: 8px 0; border-bottom: 1px solid #374151; font-size: 16px; display: flex; justify-content: space-between; }
         .phase4-item:last-child { border-bottom: none; }
+        
         .status-idle { color: #9ca3af; } 
         .status-unlocking { color: #fbbf24; } 
         .status-ready { color: #10b981; font-weight: bold; animation: pulse 1.5s infinite; } 
@@ -37,8 +39,27 @@
         
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-        #nfc-status { font-size: 16px; color: #9ca3af; margin-bottom: 10px; }
-        .nfc-button { background-color: #10b981; color: white; border: none; padding: 20px; font-size: 22px; border-radius: 50px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); margin-top: auto; margin-bottom: 20px; }
+        /* --- INTEGRUOTAS ŽEMĖLAPIS --- */
+        .embedded-map-container { position: relative; width: 100%; max-width: 600px; margin: 0 auto 20px auto; border: 2px solid #374151; border-radius: 10px; overflow: hidden; background-color: #000; }
+        .embedded-map-container img { width: 100%; display: block; opacity: 0.85; }
+        
+        .map-marker { position: absolute; width: 24px; height: 24px; background-color: #4b5563; border: 2px solid white; border-radius: 50%; color: white; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 12px; transform: translate(-50%, -50%); box-shadow: 0 4px 6px rgba(0,0,0,0.5); transition: all 0.3s ease; }
+        
+        .marker-active { background-color: #fbbf24; border-color: white; animation: pulse 1s infinite; z-index: 10; width: 32px; height: 32px; font-size: 16px;}
+        .marker-ready { background-color: #10b981; border-color: white; animation: pulse 1s infinite; z-index: 10; width: 32px; height: 32px; font-size: 16px;}
+        .marker-claimed-melyna { background-color: var(--melyna); border-color: white; }
+        .marker-claimed-raudona { background-color: var(--raudona); border-color: white; }
+
+        /* TIKSLIOS TAVO NURODYTOS KOORDINATĖS */
+        #marker-1 { top: 15%; left: 80%; }
+        #marker-2 { top: 32%; left: 65%; }
+        #marker-3 { top: 50%; left: 50%; }
+        #marker-4 { top: 68%; left: 35%; }
+        #marker-5 { top: 85%; left: 20%; }
+
+        /* NFC Mygtukas */
+        #nfc-status { font-size: 14px; color: #9ca3af; margin-bottom: 10px; }
+        .nfc-button { background-color: #10b981; color: white; border: none; padding: 20px; font-size: 20px; border-radius: 50px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); margin-top: auto; margin-bottom: 20px; width: 100%; max-width: 600px; margin-left: auto; margin-right: auto;}
         .nfc-button:active { transform: scale(0.95); }
 
         /* --- ADMIN VAIZDO STILIAI --- */
@@ -46,20 +67,16 @@
         #admin-header { background-color: var(--panel); padding: 15px; text-align: center; font-size: 20px; font-weight: bold; border-bottom: 2px solid #374151; position: sticky; top: 0; z-index: 10; }
         #admin-timer { font-size: 40px; font-weight: bold; color: #fbbf24; margin-top: 5px; }
         #game-status { font-size: 16px; color: #10b981; text-transform: uppercase; }
-
         .admin-section { background-color: var(--panel); margin: 15px; padding: 15px; border-radius: 10px; border: 1px solid #374151; }
         .section-title { font-size: 18px; color: #9ca3af; border-bottom: 1px solid #374151; padding-bottom: 10px; margin-bottom: 15px; text-transform: uppercase; }
-
         .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .btn { padding: 15px; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; color: white; width: 100%; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
         .btn:active { transform: scale(0.97); }
         .btn-start { background-color: #10b981; }
         .btn-pause { background-color: #f59e0b; }
         .btn-reset { background-color: #ef4444; grid-column: span 2; margin-top: 10px; }
-
         .score-control { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 20px; font-weight: bold; }
         .score-btn { width: 40px; height: 40px; font-size: 20px; border: none; border-radius: 5px; background-color: #4b5563; color: white; cursor: pointer; }
-
         .nfc-row { display: flex; align-items: center; margin-bottom: 10px; gap: 10px; }
         .nfc-row label { font-size: 14px; color: #d1d5db; min-width: 80px; }
         .nfc-row input { flex: 1; padding: 10px; background-color: #111827; border: 1px solid #4b5563; color: white; border-radius: 5px; font-family: monospace; }
@@ -70,9 +87,6 @@
 </head>
 <body>
 
-    <!-- ============================================== -->
-    <!--                  ŽAIDĖJŲ VAIZDAS               -->
-    <!-- ============================================== -->
     <div id="player-view" class="hidden">
         <div id="team-select-screen" class="hidden">
             <h1 style="margin-bottom: 40px;">PASIRINKITE KOMANDĄ</h1>
@@ -93,14 +107,21 @@
         <div class="player-main-content">
             <div class="phase-title" id="phase-title">1 ETAPAS: PASIRUOŠIMAS</div>
             <div id="points-display" class="active-points-container"><p>Laukiama žaidimo pradžios...</p></div>
+            
+            <div class="embedded-map-container">
+                <img src="https://i.ibb.co/C5yyFJzK/IMG-6223.jpg" alt="Poligono žemėlapis">
+                <div class="map-marker" id="marker-1">1</div>
+                <div class="map-marker" id="marker-2">2</div>
+                <div class="map-marker" id="marker-3">3</div>
+                <div class="map-marker" id="marker-4">4</div>
+                <div class="map-marker" id="marker-5">5</div>
+            </div>
+            
             <div id="nfc-status">Pasiruošta. Paspauskite mygtuką NFC aktyvavimui.</div>
             <button id="start-nfc-btn" class="nfc-button">AKTYVUOTI NFC SKAITYTUVĄ</button>
         </div>
     </div>
 
-    <!-- ============================================== -->
-    <!--                  ADMIN VAIZDAS                 -->
-    <!-- ============================================== -->
     <div id="admin-view" class="hidden">
         <div id="admin-header">
             BENDRA BŪSENA: <span id="game-status">SUSTABDYTAS</span>
@@ -118,7 +139,7 @@
 
         <div class="admin-section">
             <div class="section-title">Žaidimo Eiga</div>
-            <p style="font-size: 14px; color: #10b981; font-weight: bold; text-align: center;">Visi taškai, apgaulės (Decoys) ir etapai generuojami visiškai AUTOMATIŠKAI pagal žaidimo laiką.</p>
+            <p style="font-size: 14px; color: #10b981; font-weight: bold; text-align: center;">Visi taškai ir etapai generuojami AUTOMATIŠKAI pagal žaidimo laiką.</p>
         </div>
 
         <div class="admin-section">
@@ -141,15 +162,12 @@
 
         <div class="admin-section">
             <div class="section-title">NFC Kodų Priskyrimas</div>
-            <p style="font-size: 12px; color: #9ca3af; margin-bottom: 10px;">Paspauskite „Nuskaityti“, priglauskite naują tagą, ir jis automatiškai bus priskirtas taškui.</p>
+            <p style="font-size: 12px; color: #9ca3af; margin-bottom: 10px;">Paspauskite „Nuskaityti“, priglauskite naują tagą.</p>
             <div id="nfc-inputs"></div>
             <button class="btn-save-nfc" id="btn-save-nfc">IŠSAUGOTI RANKINIUS PAKEITIMUS</button>
         </div>
     </div>
 
-    <!-- ============================================== -->
-    <!--               PAGRINDINIS KODAS                -->
-    <!-- ============================================== -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getDatabase, ref, onValue, update, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
@@ -167,19 +185,17 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // --- URL PARAMETRŲ LOGIKA ---
+        // --- URL PARAMETRAI ---
         const urlParams = new URLSearchParams(window.location.search);
         const isAdmin = (urlParams.get('role') === 'admin');
         const urlTeam = urlParams.get('team');
 
-        // Globalūs kintamieji
         let dbState = null;
         let timerInterval;
         const totalGameTimeMs = 105 * 60 * 1000;
         let currentPhase = 1;
         window.isGenerating = false;
 
-        // Vartotojo sąsajos aktyvavimas pagal rolę
         if (isAdmin) {
             document.getElementById('admin-view').classList.remove('hidden');
         } else {
@@ -201,9 +217,60 @@
             document.getElementById('nfc-status').innerText = `Žaidžiate kaip ${team} komanda.`;
         }
 
-        // ==========================================
-        //  GLOBALIAI PASIEKIAMOS FUNKCIJOS
-        // ==========================================
+        // Duomenų sinchronizavimas
+        onValue(ref(db), (snapshot) => {
+            dbState = snapshot.val();
+            if (!dbState) return;
+
+            if (isAdmin) {
+                document.getElementById('admin-score-melyna').innerText = dbState.teams.MELYNA.score;
+                document.getElementById('admin-score-raudona').innerText = dbState.teams.RAUDONA.score;
+                updateAdminNfcInputs(); 
+            } else {
+                document.getElementById('player-score-melyna').innerText = dbState.teams.MELYNA.score;
+                document.getElementById('player-score-raudona').innerText = dbState.teams.RAUDONA.score;
+                updateMapMarkers(dbState); 
+            }
+
+            handleTimers(dbState.game_state);
+        });
+
+        function updateMapMarkers(dbData) {
+            for(let i=1; i<=5; i++) {
+                let marker = document.getElementById(`marker-${i}`);
+                marker.className = 'map-marker'; 
+            }
+
+            if (currentPhase === 2 || currentPhase === 3) {
+                if (dbData.active_points) {
+                    for (let pointId in dbData.active_points) {
+                        let pNum = pointId.split('_')[1];
+                        let marker = document.getElementById(`marker-${pNum}`);
+                        let scannedByUs = dbData.active_points[pointId][`scanned_${window.currentTeam}`];
+                        if (!scannedByUs) {
+                            marker.classList.add('marker-active');
+                        }
+                    }
+                }
+            } 
+            else if (currentPhase === 4) {
+                if (dbData.phase4_points) {
+                    for (let i=1; i<=5; i++) {
+                        let pData = dbData.phase4_points[`point_${i}`];
+                        let marker = document.getElementById(`marker-${i}`);
+                        
+                        if (pData.state === "unlocking") {
+                            marker.classList.add('marker-active'); 
+                        } else if (pData.state === "ready" || (pData.state === "unlocking" && pData.unlocksAt <= Date.now())) {
+                            marker.classList.add('marker-ready'); 
+                        } else if (pData.state === "claimed") {
+                            if (pData.claimedBy === "MELYNA") marker.classList.add('marker-claimed-melyna');
+                            if (pData.claimedBy === "RAUDONA") marker.classList.add('marker-claimed-raudona');
+                        }
+                    }
+                }
+            }
+        }
 
         function updateAdminNfcInputs() {
             if (!dbState || !dbState.nfc_mapping) return;
@@ -233,23 +300,19 @@
             let displayHtml = "";
 
             if (minutesElapsed < 10) {
-                currentPhase = 1;
-                document.getElementById('phase-title').innerText = "1 ETAPAS: PASIRUOŠIMAS";
+                currentPhase = 1; document.getElementById('phase-title').innerText = "1 ETAPAS: PASIRUOŠIMAS";
                 displayHtml = "<p>Užimkite pozicijas. Taškai neaktyvūs.</p>";
             } 
             else if (minutesElapsed >= 10 && minutesElapsed < 40) {
-                currentPhase = 2;
-                document.getElementById('phase-title').innerText = "2 ETAPAS: APŠILIMAS (10 tšk.)";
+                currentPhase = 2; document.getElementById('phase-title').innerText = "2 ETAPAS: APŠILIMAS (10 tšk.)";
                 displayHtml = generateActivePointsHtml(dbData.active_points);
             }
             else if (minutesElapsed >= 40 && minutesElapsed < 70) {
-                currentPhase = 3;
-                document.getElementById('phase-title').innerText = "3 ETAPAS: TAKTIKA (15 tšk.)";
+                currentPhase = 3; document.getElementById('phase-title').innerText = "3 ETAPAS: TAKTIKA (15 tšk.)";
                 displayHtml = generateActivePointsHtml(dbData.active_points);
             }
             else {
-                currentPhase = 4;
-                document.getElementById('phase-title').innerText = "4 ETAPAS: DOMINAVIMAS (20 tšk.)";
+                currentPhase = 4; document.getElementById('phase-title').innerText = "4 ETAPAS: DOMINAVIMAS (20 tšk.)";
                 displayHtml = generatePhase4Html(dbData.phase4_points);
             }
             document.getElementById('points-display').innerHTML = displayHtml;
@@ -262,7 +325,7 @@
                 let pNum = pointId.split('_')[1];
                 let scannedByUs = activePoints[pointId][`scanned_${window.currentTeam}`];
                 let color = scannedByUs ? '#10b981' : '#fbbf24'; 
-                html += `<span style="display:inline-block; margin: 10px; padding: 10px 20px; background: #374151; border: 2px solid ${color}; border-radius: 10px;">Taškas ${pNum}</span>`;
+                html += `<span style="display:inline-block; margin: 8px; padding: 5px 15px; background: #374151; border: 2px solid ${color}; border-radius: 8px; font-size: 16px;">Taškas ${pNum}</span>`;
             }
             return html;
         }
@@ -331,10 +394,7 @@
                     updates['active_points'] = null;
                 }
 
-                try {
-                    await update(ref(db), updates);
-                } catch(e) { console.error("Klaida generuojant etapą", e); }
-                
+                try { await update(ref(db), updates); } catch(e) { console.error("Klaida", e); }
                 setTimeout(() => { window.isGenerating = false; }, 3000);
             }
         }
@@ -363,7 +423,11 @@
                     
                     updateTimeDisplays(formatTime(timeLeft));
                     checkAutoRounds(elapsedTime);
-                    if (!isAdmin) updatePhaseDisplay(elapsedTime, dbState);
+                    
+                    if (!isAdmin) {
+                        updatePhaseDisplay(elapsedTime, dbState);
+                        updateMapMarkers(dbState); 
+                    }
                 }, 1000);
             }
             else if (state.status === "paused") {
@@ -379,26 +443,7 @@
         }
 
         // ==========================================
-        //         FIREBASE SINCHRONIZACIJA
-        // ==========================================
-        onValue(ref(db), (snapshot) => {
-            dbState = snapshot.val();
-            if (!dbState) return;
-
-            if (isAdmin) {
-                document.getElementById('admin-score-melyna').innerText = dbState.teams.MELYNA.score;
-                document.getElementById('admin-score-raudona').innerText = dbState.teams.RAUDONA.score;
-                updateAdminNfcInputs(); 
-            } else {
-                document.getElementById('player-score-melyna').innerText = dbState.teams.MELYNA.score;
-                document.getElementById('player-score-raudona').innerText = dbState.teams.RAUDONA.score;
-            }
-
-            handleTimers(dbState.game_state);
-        });
-
-        // ==========================================
-        //               ŽAIDĖJO LOGIKA
+        //               ŽAIDĖJO SKENAVIMAS
         // ==========================================
         if (!isAdmin) {
             document.getElementById('start-nfc-btn').addEventListener('click', async () => {
@@ -507,7 +552,6 @@
 
             window.adjustScore = async function(team, amount) { await update(ref(db), { [`teams/${team}/score`]: increment(amount) }); };
 
-            // Admin NFC Skenavimas UI generavimas
             const nfcContainer = document.getElementById('nfc-inputs');
             for (let i = 1; i <= 5; i++) {
                 nfcContainer.innerHTML += `
@@ -522,47 +566,37 @@
             document.addEventListener('click', async (e) => {
                 if (e.target && e.target.classList.contains('btn-scan-admin')) {
                     const pointNum = e.target.getAttribute('data-point');
-                    
                     if ("NDEFReader" in window) {
                         try {
                             if (!adminNdef) {
                                 adminNdef = new NDEFReader();
                                 await adminNdef.scan();
                             }
-                            
                             document.querySelectorAll('.btn-scan-admin').forEach(btn => {
-                                btn.innerText = "Nuskaityti";
-                                btn.style.backgroundColor = "#3b82f6";
+                                btn.innerText = "Nuskaityti"; btn.style.backgroundColor = "#3b82f6";
                             });
 
-                            e.target.innerText = "Priglauskite...";
-                            e.target.style.backgroundColor = "#f59e0b";
+                            e.target.innerText = "Priglauskite..."; e.target.style.backgroundColor = "#f59e0b";
                             
                             adminNdef.onreading = async ({ serialNumber }) => {
                                 const uid = serialNumber.toLowerCase();
                                 document.getElementById(`nfc-input-${pointNum}`).value = uid;
-                                
-                                e.target.innerText = "Sėkmingai!";
-                                e.target.style.backgroundColor = "#10b981";
+                                e.target.innerText = "Sėkmingai!"; e.target.style.backgroundColor = "#10b981";
                                 
                                 const updates = {};
                                 updates[`nfc_mapping/point_${pointNum}`] = uid;
                                 await update(ref(db), updates);
-                                
                                 adminNdef.onreading = null;
                                 
                                 setTimeout(() => {
-                                    e.target.innerText = "Nuskaityti";
-                                    e.target.style.backgroundColor = "#3b82f6";
+                                    e.target.innerText = "Nuskaityti"; e.target.style.backgroundColor = "#3b82f6";
                                 }, 3000);
                             };
                         } catch (err) {
-                            alert("Klaida įjungiant kamerą / NFC: " + err.message);
+                            alert("Klaida įjungiant NFC: " + err.message);
                             e.target.innerText = "Nuskaityti";
                         }
-                    } else {
-                        alert("NFC technologija nepalaikoma šioje naršyklėje. Naudokite Android su Chrome.");
-                    }
+                    } else { alert("NFC nepalaikomas."); }
                 }
             });
 
@@ -573,7 +607,7 @@
                     if (val) updates[`nfc_mapping/point_${i}`] = val;
                 }
                 await update(ref(db), updates);
-                alert("Rankiniai pakeitimai sėkmingai išsaugoti!");
+                alert("Pakeitimai išsaugoti!");
             });
         }
     </script>
