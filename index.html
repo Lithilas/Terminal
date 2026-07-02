@@ -60,14 +60,12 @@
         .score-control { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 20px; font-weight: bold; }
         .score-btn { width: 40px; height: 40px; font-size: 20px; border: none; border-radius: 5px; background-color: #4b5563; color: white; cursor: pointer; }
 
-        /* Admin NFC stiliai */
-        .nfc-row { margin-bottom: 15px; background: #111827; padding: 10px; border-radius: 8px; border: 1px solid #374151; }
-        .nfc-row label { font-size: 14px; color: #d1d5db; font-weight: bold; display: block; margin-bottom: 5px; }
-        .nfc-input-group { display: flex; gap: 8px; }
-        .nfc-input-group input { flex: 1; padding: 10px; background-color: #1f2937; border: 1px solid #4b5563; color: white; border-radius: 5px; font-family: monospace; font-size: 14px; }
-        .btn-scan-nfc { background-color: #3b82f6; color: white; border: none; padding: 10px 12px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 12px; white-space: nowrap; }
-        .btn-scan-nfc.scanning { background-color: #f59e0b; animation: pulse 1s infinite; }
-        .btn-save-nfc { background-color: #8b5cf6; margin-top: 10px; }
+        .nfc-row { display: flex; align-items: center; margin-bottom: 10px; gap: 10px; }
+        .nfc-row label { font-size: 14px; color: #d1d5db; min-width: 80px; }
+        .nfc-row input { flex: 1; padding: 10px; background-color: #111827; border: 1px solid #4b5563; color: white; border-radius: 5px; font-family: monospace; }
+        .btn-scan-admin { padding: 10px 15px; background-color: #3b82f6; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 14px;}
+        .btn-scan-admin:active { transform: scale(0.95); }
+        .btn-save-nfc { background-color: #8b5cf6; margin-top: 10px; width: 100%; padding: 15px; border-radius: 8px; border: none; color: white; font-weight: bold; font-size: 16px;}
     </style>
 </head>
 <body>
@@ -142,10 +140,10 @@
         </div>
 
         <div class="admin-section">
-            <div class="section-title">NFC Kodų Skenavimas ir Priskyrimas</div>
-            <p style="font-size: 12px; color: #9ca3af; margin-bottom: 15px;">Paspauskite mygtuką šalia norimo taško ir priglauskite NFC tagą, kad jį priskirtumėte.</p>
+            <div class="section-title">NFC Kodų Priskyrimas</div>
+            <p style="font-size: 12px; color: #9ca3af; margin-bottom: 10px;">Paspauskite „Nuskaityti“, priglauskite naują tagą, ir jis automatiškai bus priskirtas taškui.</p>
             <div id="nfc-inputs"></div>
-            <button class="btn btn-save-nfc" id="btn-save-nfc">IŠSAUGOTI VISUS RANKINIUS PAKEITIMUS</button>
+            <button class="btn-save-nfc" id="btn-save-nfc">IŠSAUGOTI RANKINIUS PAKEITIMUS</button>
         </div>
     </div>
 
@@ -169,11 +167,19 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // URL parametrų logika
+        // --- URL PARAMETRŲ LOGIKA ---
         const urlParams = new URLSearchParams(window.location.search);
         const isAdmin = (urlParams.get('role') === 'admin');
         const urlTeam = urlParams.get('team');
 
+        // Globalūs kintamieji
+        let dbState = null;
+        let timerInterval;
+        const totalGameTimeMs = 105 * 60 * 1000;
+        let currentPhase = 1;
+        window.isGenerating = false;
+
+        // Vartotojo sąsajos aktyvavimas pagal rolę
         if (isAdmin) {
             document.getElementById('admin-view').classList.remove('hidden');
         } else {
@@ -189,36 +195,150 @@
             }
         }
 
-        let dbState = null;
-        let timerInterval;
-        const totalGameTimeMs = 105 * 60 * 1000;
-        let currentPhase = 1;
-        window.isGenerating = false;
-
         window.selectTeam = function(team) {
             window.currentTeam = team;
             document.getElementById('team-select-screen').classList.add('hidden');
             document.getElementById('nfc-status').innerText = `Žaidžiate kaip ${team} komanda.`;
         }
 
-        // Duomenų sinchronizavimas
-        onValue(ref(db), (snapshot) => {
-            dbState = snapshot.val();
-            if (!dbState) return;
+        // ==========================================
+        //  GLOBALIAI PASIEKIAMOS FUNKCIJOS
+        // ==========================================
 
-            if (isAdmin) {
-                document.getElementById('admin-score-melyna').innerText = dbState.teams.MELYNA.score;
-                document.getElementById('admin-score-raudona').innerText = dbState.teams.RAUDONA.score;
-                updateAdminNfcInputs();
-            } else {
-                document.getElementById('player-score-melyna').innerText = dbState.teams.MELYNA.score;
-                document.getElementById('player-score-raudona').innerText = dbState.teams.RAUDONA.score;
+        function updateAdminNfcInputs() {
+            if (!dbState || !dbState.nfc_mapping) return;
+            for (let i = 1; i <= 5; i++) {
+                let input = document.getElementById(`nfc-input-${i}`);
+                if (input && document.activeElement !== input) {
+                    input.value = dbState.nfc_mapping[`point_${i}`] || "";
+                }
             }
+        }
 
-            handleTimers(dbState.game_state);
-        });
+        function formatTime(ms) {
+            let totalSec = Math.floor(ms / 1000);
+            let h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+            let m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+            let s = String(totalSec % 60).padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
 
-        // Laikmačio ir AUTOMATIZACIJOS valdymas
+        function updateTimeDisplays(timeStr) {
+            if (isAdmin) document.getElementById('admin-timer').innerText = timeStr;
+            else document.getElementById('player-timer').innerText = timeStr;
+        }
+
+        function updatePhaseDisplay(elapsedTimeMs, dbData) {
+            let minutesElapsed = elapsedTimeMs / 60000;
+            let displayHtml = "";
+
+            if (minutesElapsed < 10) {
+                currentPhase = 1;
+                document.getElementById('phase-title').innerText = "1 ETAPAS: PASIRUOŠIMAS";
+                displayHtml = "<p>Užimkite pozicijas. Taškai neaktyvūs.</p>";
+            } 
+            else if (minutesElapsed >= 10 && minutesElapsed < 40) {
+                currentPhase = 2;
+                document.getElementById('phase-title').innerText = "2 ETAPAS: APŠILIMAS (10 tšk.)";
+                displayHtml = generateActivePointsHtml(dbData.active_points);
+            }
+            else if (minutesElapsed >= 40 && minutesElapsed < 70) {
+                currentPhase = 3;
+                document.getElementById('phase-title').innerText = "3 ETAPAS: TAKTIKA (15 tšk.)";
+                displayHtml = generateActivePointsHtml(dbData.active_points);
+            }
+            else {
+                currentPhase = 4;
+                document.getElementById('phase-title').innerText = "4 ETAPAS: DOMINAVIMAS (20 tšk.)";
+                displayHtml = generatePhase4Html(dbData.phase4_points);
+            }
+            document.getElementById('points-display').innerHTML = displayHtml;
+        }
+
+        function generateActivePointsHtml(activePoints) {
+            if (!activePoints) return "<p>Laukiama naujų taškų...</p>";
+            let html = "Aktyvūs taškai:<br>";
+            for (let pointId in activePoints) {
+                let pNum = pointId.split('_')[1];
+                let scannedByUs = activePoints[pointId][`scanned_${window.currentTeam}`];
+                let color = scannedByUs ? '#10b981' : '#fbbf24'; 
+                html += `<span style="display:inline-block; margin: 10px; padding: 10px 20px; background: #374151; border: 2px solid ${color}; border-radius: 10px;">Taškas ${pNum}</span>`;
+            }
+            return html;
+        }
+
+        function generatePhase4Html(p4Points) {
+            if (!p4Points) return "";
+            let html = "<div class='phase4-list'>";
+            for (let i = 1; i <= 5; i++) {
+                let pointData = p4Points[`point_${i}`];
+                let statusText = "", statusClass = "";
+                if (pointData.state === "idle") {
+                    statusText = "🔒 Neaktyvuotas"; statusClass = "status-idle";
+                } else if (pointData.state === "unlocking") {
+                    let timeLeftToUnlock = pointData.unlocksAt - Date.now();
+                    if (timeLeftToUnlock > 0) {
+                        let m = Math.floor((timeLeftToUnlock % 3600000) / 60000);
+                        let s = Math.floor((timeLeftToUnlock % 60000) / 1000);
+                        statusText = `⏳ Atsirakina po ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+                        statusClass = "status-unlocking";
+                    } else {
+                        statusText = "🟢 ATRAKINTAS"; statusClass = "status-ready";
+                    }
+                } else if (pointData.state === "claimed") {
+                    statusText = `🚩 Užėmė ${pointData.claimedBy}`; statusClass = "status-claimed";
+                }
+                html += `<div class="phase4-item"><span>Taškas ${i}</span> <span class="${statusClass}">${statusText}</span></div>`;
+            }
+            return html + "</div>";
+        }
+
+        async function checkAutoRounds(elapsedTimeMs) {
+            if (!dbState || !dbState.game_state) return;
+            let elapsedMinutes = Math.floor(elapsedTimeMs / 60000);
+            let expectedRound = 0;
+            
+            if (elapsedMinutes >= 10 && elapsedMinutes < 20) expectedRound = 1;
+            else if (elapsedMinutes >= 20 && elapsedMinutes < 30) expectedRound = 2;
+            else if (elapsedMinutes >= 30 && elapsedMinutes < 40) expectedRound = 3;
+            else if (elapsedMinutes >= 40 && elapsedMinutes < 50) expectedRound = 4;
+            else if (elapsedMinutes >= 50 && elapsedMinutes < 60) expectedRound = 5;
+            else if (elapsedMinutes >= 60 && elapsedMinutes < 70) expectedRound = 6;
+            else if (elapsedMinutes >= 70) expectedRound = 7; 
+
+            if (expectedRound > 0 && dbState.game_state.current_round < expectedRound) {
+                if (window.isGenerating) return; 
+                window.isGenerating = true;
+
+                const updates = {};
+                updates['game_state/current_round'] = expectedRound;
+
+                if (expectedRound >= 1 && expectedRound <= 3) {
+                    let rp = [1, 2, 3, 4, 5].sort(() => 0.5 - Math.random())[0];
+                    updates['active_points'] = {
+                        [`point_${rp}`]: { is_decoy: false, scanned_MELYNA: false, scanned_RAUDONA: false }
+                    };
+                } 
+                else if (expectedRound >= 4 && expectedRound <= 6) {
+                    let sel = [1, 2, 3, 4, 5].sort(() => 0.5 - Math.random()).slice(0, 2);
+                    let decoyIndex = Math.random() < 0.5 ? 0 : 1;
+                    updates['active_points'] = {
+                        [`point_${sel[0]}`]: { is_decoy: (decoyIndex === 0), scanned_MELYNA: false, scanned_RAUDONA: false },
+                        [`point_${sel[1]}`]: { is_decoy: (decoyIndex === 1), scanned_MELYNA: false, scanned_RAUDONA: false }
+                    };
+                }
+                else if (expectedRound === 7) {
+                    updates['active_points'] = null;
+                }
+
+                try {
+                    await update(ref(db), updates);
+                } catch(e) { console.error("Klaida generuojant etapą", e); }
+                
+                setTimeout(() => { window.isGenerating = false; }, 3000);
+            }
+        }
+
         function handleTimers(state) {
             clearInterval(timerInterval);
 
@@ -243,7 +363,6 @@
                     
                     updateTimeDisplays(formatTime(timeLeft));
                     checkAutoRounds(elapsedTime);
-
                     if (!isAdmin) updatePhaseDisplay(elapsedTime, dbState);
                 }, 1000);
             }
@@ -260,135 +379,28 @@
         }
 
         // ==========================================
-        //         AUTOMATIZACIJOS VARIKLIS
+        //         FIREBASE SINCHRONIZACIJA
         // ==========================================
-        async function checkAutoRounds(elapsedTimeMs) {
-            if (!dbState || !dbState.game_state) return;
-            let elapsedMinutes = Math.floor(elapsedTimeMs / 60000);
-            let expectedRound = 0;
-            
-            if (elapsedMinutes >= 10 && elapsedMinutes < 20) expectedRound = 1;
-            else if (elapsedMinutes >= 20 && elapsedMinutes < 30) expectedRound = 2;
-            else if (elapsedMinutes >= 30 && elapsedMinutes < 40) expectedRound = 3;
-            else if (elapsedMinutes >= 40 && elapsedMinutes < 50) expectedRound = 4;
-            else if (elapsedMinutes >= 50 && elapsedMinutes < 60) expectedRound = 5;
-            else if (elapsedMinutes >= 60 && elapsedMinutes < 70) expectedRound = 6;
-            else if (elapsedMinutes >= 70) expectedRound = 7;
+        onValue(ref(db), (snapshot) => {
+            dbState = snapshot.val();
+            if (!dbState) return;
 
-            if (expectedRound > 0 && dbState.game_state.current_round < expectedRound) {
-                if (window.isGenerating) return;
-                window.isGenerating = true;
-
-                const updates = {};
-                updates['game_state/current_round'] = expectedRound;
-
-                if (expectedRound >= 1 && expectedRound <= 3) {
-                    let rp = [1, 2, 3, 4, 5].sort(() => 0.5 - Math.random())[0];
-                    updates['active_points'] = {
-                        [`point_${rp}`]: { is_decoy: false, scanned_MELYNA: false, scanned_RAUDONA: false }
-                    };
-                } 
-                else if (expectedRound >= 4 && expectedRound <= 6) {
-                    let sel = [1, 2, 3, 4, 5].sort(() => 0.5 - Math.random()).slice(0, 2);
-                    let decoyIndex = Math.random() < 0.5 ? 0 : 1;
-                    updates['active_points'] = {
-                        [`point_${sel[0]}`]: { is_decoy: (decoyIndex === 0), scanned_MELYNA: false, scanned_RAUDONA: false },
-                        [`point_${sel[1]}`]: { is_decoy: (decoyIndex === 1), scanned_MELYNA: false, scanned_RAUDONA: false }
-                    };
-                }
-                else if (expectedRound === 7) {
-                    updates['active_points'] = null;
-                }
-
-                try { await update(ref(db), updates); } 
-                catch(e) { console.error("Klaida generuojant etapą", e); }
-                
-                setTimeout(() => { window.isGenerating = false; }, 3000);
+            if (isAdmin) {
+                document.getElementById('admin-score-melyna').innerText = dbState.teams.MELYNA.score;
+                document.getElementById('admin-score-raudona').innerText = dbState.teams.RAUDONA.score;
+                updateAdminNfcInputs(); 
+            } else {
+                document.getElementById('player-score-melyna').innerText = dbState.teams.MELYNA.score;
+                document.getElementById('player-score-raudona').innerText = dbState.teams.RAUDONA.score;
             }
-        }
 
-        function formatTime(ms) {
-            let totalSec = Math.floor(ms / 1000);
-            let h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
-            let m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
-            let s = String(totalSec % 60).padStart(2, '0');
-            return `${h}:${m}:${s}`;
-        }
-
-        function updateTimeDisplays(timeStr) {
-            if (isAdmin) document.getElementById('admin-timer').innerText = timeStr;
-            else document.getElementById('player-timer').innerText = timeStr;
-        }
+            handleTimers(dbState.game_state);
+        });
 
         // ==========================================
         //               ŽAIDĖJO LOGIKA
         // ==========================================
         if (!isAdmin) {
-            function updatePhaseDisplay(elapsedTimeMs, dbData) {
-                let minutesElapsed = elapsedTimeMs / 60000;
-                let displayHtml = "";
-
-                if (minutesElapsed < 10) {
-                    currentPhase = 1;
-                    document.getElementById('phase-title').innerText = "1 ETAPAS: PASIRUOŠIMAS";
-                    displayHtml = "<p>Užimkite pozicijas. Taškai neaktyvūs.</p>";
-                } 
-                else if (minutesElapsed >= 10 && minutesElapsed < 40) {
-                    currentPhase = 2;
-                    document.getElementById('phase-title').innerText = "2 ETAPAS: APŠILIMAS (10 tšk.)";
-                    displayHtml = generateActivePointsHtml(dbData.active_points);
-                }
-                else if (minutesElapsed >= 40 && minutesElapsed < 70) {
-                    currentPhase = 3;
-                    document.getElementById('phase-title').innerText = "3 ETAPAS: TAKTIKA (15 tšk.)";
-                    displayHtml = generateActivePointsHtml(dbData.active_points);
-                }
-                else {
-                    currentPhase = 4;
-                    document.getElementById('phase-title').innerText = "4 ETAPAS: DOMINAVIMAS (20 tšk.)";
-                    displayHtml = generatePhase4Html(dbData.phase4_points);
-                }
-                document.getElementById('points-display').innerHTML = displayHtml;
-            }
-
-            function generateActivePointsHtml(activePoints) {
-                if (!activePoints) return "<p>Laukiama naujų taškų...</p>";
-                let html = "Aktyvūs taškai:<br>";
-                for (let pointId in activePoints) {
-                    let pNum = pointId.split('_')[1];
-                    let scannedByUs = activePoints[pointId][`scanned_${window.currentTeam}`];
-                    let color = scannedByUs ? '#10b981' : '#fbbf24'; 
-                    html += `<span style="display:inline-block; margin: 10px; padding: 10px 20px; background: #374151; border: 2px solid ${color}; border-radius: 10px;">Taškas ${pNum}</span>`;
-                }
-                return html;
-            }
-
-            function generatePhase4Html(p4Points) {
-                if (!p4Points) return "";
-                let html = "<div class='phase4-list'>";
-                for (let i = 1; i <= 5; i++) {
-                    let pointData = p4Points[`point_${i}`];
-                    let statusText = "", statusClass = "";
-                    if (pointData.state === "idle") {
-                        statusText = "🔒 Neaktyvuotas"; statusClass = "status-idle";
-                    } else if (pointData.state === "unlocking") {
-                        let timeLeftToUnlock = pointData.unlocksAt - Date.now();
-                        if (timeLeftToUnlock > 0) {
-                            let m = Math.floor((timeLeftToUnlock % 3600000) / 60000);
-                            let s = Math.floor((timeLeftToUnlock % 60000) / 1000);
-                            statusText = `⏳ Atsirakina po ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-                            statusClass = "status-unlocking";
-                        } else {
-                            statusText = "🟢 ATRAKINTAS"; statusClass = "status-ready";
-                        }
-                    } else if (pointData.state === "claimed") {
-                        statusText = `🚩 Užėmė ${pointData.claimedBy}`; statusClass = "status-claimed";
-                    }
-                    html += `<div class="phase4-item"><span>Taškas ${i}</span> <span class="${statusClass}">${statusText}</span></div>`;
-                }
-                return html + "</div>";
-            }
-
             document.getElementById('start-nfc-btn').addEventListener('click', async () => {
                 if (!window.currentTeam) { alert("Pirma pasirinkite komandą!"); return; }
                 if ("NDEFReader" in window) {
@@ -410,7 +422,7 @@
 
                 let foundPointId = null;
                 for (const [pId, mappedUid] of Object.entries(dbState.nfc_mapping)) {
-                    if (mappedUid.toLowerCase() === nfcUid) { foundPointId = pId; break; }
+                    if (mappedUid && mappedUid.toLowerCase() === nfcUid) { foundPointId = pId; break; }
                 }
                 if (!foundPointId) { alert("Neatpažintas NFC tagas!"); return; }
 
@@ -480,7 +492,7 @@
                 if (confirm("AR TIKRAI NORITE PERKRAUTI VISĄ ŽAIDIMĄ? Visi laikai ir taškai anuliuosis.")) {
                     const updates = {
                         'game_state/status': "stopped", 'game_state/start_time': 0, 'game_state/pause_time': 0, 'game_state/total_paused_ms': 0,
-                        'game_state/current_round': 0,
+                        'game_state/current_round': 0, 
                         'teams/MELYNA/score': 0, 'teams/RAUDONA/score': 0, 'active_points': null
                     };
                     for (let i = 1; i <= 5; i++) {
@@ -495,78 +507,65 @@
 
             window.adjustScore = async function(team, amount) { await update(ref(db), { [`teams/${team}/score`]: increment(amount) }); };
 
-            // Generuojame 5 NFC įvesties laukelius su "Nuskenuoti" mygtukais
+            // Admin NFC Skenavimas UI generavimas
             const nfcContainer = document.getElementById('nfc-inputs');
             for (let i = 1; i <= 5; i++) {
                 nfcContainer.innerHTML += `
                     <div class="nfc-row">
-                        <label>TAŠKAS ${i} UID:</label>
-                        <div class="nfc-input-group">
-                            <input type="text" id="nfc-input-${i}" placeholder="Nėra priskirto kodo">
-                            <button class="btn-scan-nfc" id="btn-scan-${i}" onclick="startAdminScan(${i})">NUSKENUOTI IR PRISKIRTI</button>
-                        </div>
-                    </div>
-                `;
-            }
-            
-            function updateAdminNfcInputs() {
-                for (let i = 1; i <= 5; i++) {
-                    let input = document.getElementById(`nfc-input-${i}`);
-                    if (input && document.activeElement !== input) input.value = dbState.nfc_mapping[`point_${i}`] || "";
-                }
+                        <label>TAŠKAS ${i}:</label>
+                        <input type="text" id="nfc-input-${i}" placeholder="Laukiama UID...">
+                        <button class="btn-scan-admin" data-point="${i}">Nuskaityti</button>
+                    </div>`;
             }
 
-            // Admin NFC skenavimo funkcija
-            let activeAdminScanController = null;
+            let adminNdef = null;
+            document.addEventListener('click', async (e) => {
+                if (e.target && e.target.classList.contains('btn-scan-admin')) {
+                    const pointNum = e.target.getAttribute('data-point');
+                    
+                    if ("NDEFReader" in window) {
+                        try {
+                            if (!adminNdef) {
+                                adminNdef = new NDEFReader();
+                                await adminNdef.scan();
+                            }
+                            
+                            document.querySelectorAll('.btn-scan-admin').forEach(btn => {
+                                btn.innerText = "Nuskaityti";
+                                btn.style.backgroundColor = "#3b82f6";
+                            });
 
-            window.startAdminScan = async function(pointIndex) {
-                if (!("NDEFReader" in window)) {
-                    alert("NFC nepalaikomas šioje naršyklėje. Naudokite Android Chrome.");
-                    return;
-                }
-
-                // Jei jau vyko kitas skenavimo procesas - sustabdome
-                if (activeAdminScanController) activeAdminScanController.abort();
-                activeAdminScanController = new AbortController();
-
-                // Atstatome visų mygtukų tekstus ir stilius
-                for (let i = 1; i <= 5; i++) {
-                    let btn = document.getElementById(`btn-scan-${i}`);
-                    if (btn) { btn.innerText = "NUSKENUOTI IR PRISKIRTI"; btn.classList.remove("scanning"); }
-                }
-
-                let targetBtn = document.getElementById(`btn-scan-${pointIndex}`);
-                targetBtn.innerText = "PRIGLAUSKITE TAGĄ...";
-                targetBtn.classList.add("scanning");
-
-                try {
-                    const ndef = new NDEFReader();
-                    await ndef.scan({ signal: activeAdminScanController.signal });
-
-                    ndef.addEventListener("reading", async ({ serialNumber }) => {
-                        let cleanUid = serialNumber.toLowerCase();
-                        document.getElementById(`nfc-input-${pointIndex}`).value = cleanUid;
-                        
-                        // Iškart automatiškai išsaugome į Firebase bazę
-                        await update(ref(db), {
-                            [`nfc_mapping/point_${pointIndex}`]: cleanUid
-                        });
-
-                        alert(`Sėkmingai! Taškui ${pointIndex} priskirtas NFC kodas: ${cleanUid}`);
-                        targetBtn.innerText = "NUSKENUOTI IR PRISKIRTI";
-                        targetBtn.classList.remove("scanning");
-                        activeAdminScanController.abort(); // Baigiame skenavimą
-                    });
-                } catch (error) {
-                    if (error.name !== "AbortError") {
-                        alert("NFC Klaida: " + error.message);
-                        targetBtn.innerText = "NUSKENUOTI IR PRISKIRTI";
-                        targetBtn.classList.remove("scanning");
+                            e.target.innerText = "Priglauskite...";
+                            e.target.style.backgroundColor = "#f59e0b";
+                            
+                            adminNdef.onreading = async ({ serialNumber }) => {
+                                const uid = serialNumber.toLowerCase();
+                                document.getElementById(`nfc-input-${pointNum}`).value = uid;
+                                
+                                e.target.innerText = "Sėkmingai!";
+                                e.target.style.backgroundColor = "#10b981";
+                                
+                                const updates = {};
+                                updates[`nfc_mapping/point_${pointNum}`] = uid;
+                                await update(ref(db), updates);
+                                
+                                adminNdef.onreading = null;
+                                
+                                setTimeout(() => {
+                                    e.target.innerText = "Nuskaityti";
+                                    e.target.style.backgroundColor = "#3b82f6";
+                                }, 3000);
+                            };
+                        } catch (err) {
+                            alert("Klaida įjungiant kamerą / NFC: " + err.message);
+                            e.target.innerText = "Nuskaityti";
+                        }
+                    } else {
+                        alert("NFC technologija nepalaikoma šioje naršyklėje. Naudokite Android su Chrome.");
                     }
                 }
-            };
+            });
 
-            // Rankinis išsaugojimas (jei kartais norėtumėte įrašyti ar pataisyti kodą klaviatūra)
             document.getElementById('btn-save-nfc').addEventListener('click', async () => {
                 const updates = {};
                 for (let i = 1; i <= 5; i++) {
@@ -574,7 +573,7 @@
                     if (val) updates[`nfc_mapping/point_${i}`] = val;
                 }
                 await update(ref(db), updates);
-                alert("Rankiniai pakeitimai išsaugoti!");
+                alert("Rankiniai pakeitimai sėkmingai išsaugoti!");
             });
         }
     </script>
