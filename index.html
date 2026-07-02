@@ -8,7 +8,6 @@
         :root { --melyna: #1e3a8a; --raudona: #991b1b; --bg: #111827; --text: #f3f4f6; --panel: #1f2937; }
         body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
         
-        /* Bendrai naudojamos klasės */
         .hidden { display: none !important; }
         .scores { display: flex; justify-content: space-around; padding: 15px 0; font-size: 24px; font-weight: bold; background-color: var(--panel); border-bottom: 1px solid #374151; }
         .score-melyna { color: #60a5fa; }
@@ -57,7 +56,6 @@
         .btn-start { background-color: #10b981; }
         .btn-pause { background-color: #f59e0b; }
         .btn-reset { background-color: #ef4444; grid-column: span 2; margin-top: 10px; }
-        .btn-action { background-color: #3b82f6; margin-bottom: 10px; }
 
         .score-control { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 20px; font-weight: bold; }
         .score-btn { width: 40px; height: 40px; font-size: 20px; border: none; border-radius: 5px; background-color: #4b5563; color: white; cursor: pointer; }
@@ -71,7 +69,6 @@
 <body>
 
     <div id="player-view" class="hidden">
-        
         <div id="team-select-screen" class="hidden">
             <h1 style="margin-bottom: 40px;">PASIRINKITE KOMANDĄ</h1>
             <button class="team-btn btn-melyna" onclick="selectTeam('MELYNA')">MĖLYNA</button>
@@ -112,10 +109,8 @@
         </div>
 
         <div class="admin-section">
-            <div class="section-title">Etapų Taškų Valdymas</div>
-            <button class="btn btn-action" id="btn-gen-phase2">SUGENERUOTI 1 TAŠKĄ (2 Etapas)</button>
-            <button class="btn btn-action" style="background-color: #6366f1;" id="btn-gen-phase3">SUGENERUOTI 2 TAŠKUS (3 Etapas)</button>
-            <p style="font-size: 12px; color: #9ca3af;">4 etapas aktyvuojasi žaidėjams automatiškai.</p>
+            <div class="section-title">Žaidimo Eiga</div>
+            <p style="font-size: 14px; color: #10b981; font-weight: bold; text-align: center;">Visi taškai, apgaulės (Decoys) ir etapai generuojami visiškai AUTOMATIŠKAI pagal žaidimo laiką.</p>
         </div>
 
         <div class="admin-section">
@@ -145,7 +140,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getDatabase, ref, onValue, update, set, get, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+        import { getDatabase, ref, onValue, update, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAlcqAwCrld_zxK-X_7ETMq5iGJ2eR7S5Y",
@@ -160,14 +155,11 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // --- URL PARAMETRŲ SKAITYMAS (Routing) ---
+        // URL parametrų logika
         const urlParams = new URLSearchParams(window.location.search);
-        const urlRole = urlParams.get('role'); // Pvz: admin
-        const urlTeam = urlParams.get('team'); // Pvz: melyna, raudona
+        const isAdmin = (urlParams.get('role') === 'admin');
+        const urlTeam = urlParams.get('team');
 
-        const isAdmin = (urlRole === 'admin');
-
-        // Priklausomai nuo URL, parodome atitinkamą vaizdą
         if (isAdmin) {
             document.getElementById('admin-view').classList.remove('hidden');
         } else {
@@ -183,27 +175,23 @@
             }
         }
 
-        // Bendra žaidimo informacija
         let dbState = null;
         let timerInterval;
         const totalGameTimeMs = 105 * 60 * 1000;
         let currentPhase = 1;
+        window.isGenerating = false; // Apsauga nuo dvigubo generavimo
 
-        // Komandos pasirinkimo funkcija (UI žaidėjams)
         window.selectTeam = function(team) {
             window.currentTeam = team;
             document.getElementById('team-select-screen').classList.add('hidden');
             document.getElementById('nfc-status').innerText = `Žaidžiate kaip ${team} komanda.`;
         }
 
-        // ==========================================
-        //         BENDRA DUOMENŲ SINCHRONIZACIJA
-        // ==========================================
+        // Duomenų sinchronizavimas
         onValue(ref(db), (snapshot) => {
             dbState = snapshot.val();
             if (!dbState) return;
 
-            // Bendrai atnaujiname taškus (tiek Player, tiek Admin vaizdams)
             if (isAdmin) {
                 document.getElementById('admin-score-melyna').innerText = dbState.teams.MELYNA.score;
                 document.getElementById('admin-score-raudona').innerText = dbState.teams.RAUDONA.score;
@@ -216,9 +204,7 @@
             handleTimers(dbState.game_state);
         });
 
-        // ==========================================
-        //              LAIKMAČIŲ LOGIKA
-        // ==========================================
+        // Laikmačio ir AUTOMATIZACIJOS valdymas
         function handleTimers(state) {
             clearInterval(timerInterval);
 
@@ -241,8 +227,10 @@
                     let timeLeft = totalGameTimeMs - elapsedTime;
                     if(timeLeft <= 0) timeLeft = 0;
                     
-                    let timeString = formatTime(timeLeft);
-                    updateTimeDisplays(timeString);
+                    updateTimeDisplays(formatTime(timeLeft));
+
+                    // AUTOMATINIO ETAPŲ GENERAVIMO PATIKRINIMAS
+                    checkAutoRounds(elapsedTime);
 
                     if (!isAdmin) updatePhaseDisplay(elapsedTime, dbState);
                 }, 1000);
@@ -251,7 +239,6 @@
                 let elapsedTime = state.pause_time - (state.start_time + state.total_paused_ms);
                 let timeLeft = totalGameTimeMs - elapsedTime;
                 updateTimeDisplays(formatTime(timeLeft));
-                
                 if (isAdmin) {
                     let st = document.getElementById('game-status'); st.innerText = "PAUZĖ"; st.style.color = "#f59e0b";
                 } else {
@@ -260,6 +247,63 @@
             }
         }
 
+        // ==========================================
+        //         AUTOMATIZACIJOS VARIKLIS
+        // ==========================================
+        async function checkAutoRounds(elapsedTimeMs) {
+            if (!dbState || !dbState.game_state) return;
+            let elapsedMinutes = Math.floor(elapsedTimeMs / 60000);
+            let expectedRound = 0;
+            
+            // Nustatome, kuris raundas šiuo metu turi veikti
+            if (elapsedMinutes >= 10 && elapsedMinutes < 20) expectedRound = 1;
+            else if (elapsedMinutes >= 20 && elapsedMinutes < 30) expectedRound = 2;
+            else if (elapsedMinutes >= 30 && elapsedMinutes < 40) expectedRound = 3;
+            else if (elapsedMinutes >= 40 && elapsedMinutes < 50) expectedRound = 4;
+            else if (elapsedMinutes >= 50 && elapsedMinutes < 60) expectedRound = 5;
+            else if (elapsedMinutes >= 60 && elapsedMinutes < 70) expectedRound = 6;
+            else if (elapsedMinutes >= 70) expectedRound = 7; // Dominavimas (4 etapas)
+
+            // Jei duomenų bazėje raundas atsilieka nuo to, kuris turėtų būti
+            if (expectedRound > 0 && dbState.game_state.current_round < expectedRound) {
+                if (window.isGenerating) return; // Apsauga nuo susidubliavimo
+                window.isGenerating = true;
+
+                const updates = {};
+                updates['game_state/current_round'] = expectedRound;
+
+                if (expectedRound >= 1 && expectedRound <= 3) {
+                    // Generuojame 1 tašką (Apšilimas)
+                    let rp = [1, 2, 3, 4, 5].sort(() => 0.5 - Math.random())[0];
+                    updates['active_points'] = {
+                        [`point_${rp}`]: { is_decoy: false, scanned_MELYNA: false, scanned_RAUDONA: false }
+                    };
+                } 
+                else if (expectedRound >= 4 && expectedRound <= 6) {
+                    // Generuojame 2 taškus (Taktika)
+                    let sel = [1, 2, 3, 4, 5].sort(() => 0.5 - Math.random()).slice(0, 2);
+                    let decoyIndex = Math.random() < 0.5 ? 0 : 1;
+                    updates['active_points'] = {
+                        [`point_${sel[0]}`]: { is_decoy: (decoyIndex === 0), scanned_MELYNA: false, scanned_RAUDONA: false },
+                        [`point_${sel[1]}`]: { is_decoy: (decoyIndex === 1), scanned_MELYNA: false, scanned_RAUDONA: false }
+                    };
+                }
+                else if (expectedRound === 7) {
+                    // Prasideda 4 etapas: Išvalome senus aktyvius taškus, puslapis automatiškai parodys Dominavimo sąrašą
+                    updates['active_points'] = null;
+                }
+
+                try {
+                    await update(ref(db), updates);
+                } catch(e) { console.error("Klaida generuojant etapą", e); }
+                
+                setTimeout(() => { window.isGenerating = false; }, 3000);
+            }
+        }
+
+        // ==========================================
+        //               PAGALBINĖS FUNKCIJOS
+        // ==========================================
         function formatTime(ms) {
             let totalSec = Math.floor(ms / 1000);
             let h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
@@ -273,9 +317,6 @@
             else document.getElementById('player-timer').innerText = timeStr;
         }
 
-        // ==========================================
-        //        ŽAIDĖJO LOGIKA (UI ir NFC)
-        // ==========================================
         if (!isAdmin) {
             function updatePhaseDisplay(elapsedTimeMs, dbData) {
                 let minutesElapsed = elapsedTimeMs / 60000;
@@ -301,7 +342,6 @@
                     document.getElementById('phase-title').innerText = "4 ETAPAS: DOMINAVIMAS (20 tšk.)";
                     displayHtml = generatePhase4Html(dbData.phase4_points);
                 }
-
                 document.getElementById('points-display').innerHTML = displayHtml;
             }
 
@@ -366,7 +406,6 @@
                 for (const [pId, mappedUid] of Object.entries(dbState.nfc_mapping)) {
                     if (mappedUid.toLowerCase() === nfcUid) { foundPointId = pId; break; }
                 }
-
                 if (!foundPointId) { alert("Neatpažintas NFC tagas!"); return; }
 
                 const updates = {};
@@ -432,9 +471,10 @@
             });
 
             document.getElementById('btn-reset').addEventListener('click', async () => {
-                if (confirm("AR TIKRAI NORITE PERKRAUTI VISĄ ŽAIDIMĄ?")) {
+                if (confirm("AR TIKRAI NORITE PERKRAUTI VISĄ ŽAIDIMĄ? Visi laikai ir taškai anuliuosis.")) {
                     const updates = {
                         'game_state/status': "stopped", 'game_state/start_time': 0, 'game_state/pause_time': 0, 'game_state/total_paused_ms': 0,
+                        'game_state/current_round': 0, // Anuliuojamas raundų skaitiklis
                         'teams/MELYNA/score': 0, 'teams/RAUDONA/score': 0, 'active_points': null
                     };
                     for (let i = 1; i <= 5; i++) {
@@ -443,34 +483,12 @@
                         updates[`phase4_points/point_${i}/claimedBy`] = "";
                     }
                     await update(ref(db), updates);
-                    alert("Žaidimas perkrautas!");
+                    alert("Žaidimas sėkmingai perkrautas!");
                 }
             });
 
             window.adjustScore = async function(team, amount) { await update(ref(db), { [`teams/${team}/score`]: increment(amount) }); };
 
-            function getRandomPoints(count) {
-                return [1, 2, 3, 4, 5].sort(() => 0.5 - Math.random()).slice(0, count);
-            }
-
-            document.getElementById('btn-gen-phase2').addEventListener('click', async () => {
-                let rp = getRandomPoints(1)[0];
-                let ap = {}; ap[`point_${rp}`] = { is_decoy: false, scanned_MELYNA: false, scanned_RAUDONA: false };
-                await set(ref(db, 'active_points'), ap);
-                alert(`Sugeneruota: Taškas ${rp}`);
-            });
-
-            document.getElementById('btn-gen-phase3').addEventListener('click', async () => {
-                let sel = getRandomPoints(2);
-                let decoyIndex = Math.random() < 0.5 ? 0 : 1;
-                let ap = {};
-                ap[`point_${sel[0]}`] = { is_decoy: (decoyIndex === 0), scanned_MELYNA: false, scanned_RAUDONA: false };
-                ap[`point_${sel[1]}`] = { is_decoy: (decoyIndex === 1), scanned_MELYNA: false, scanned_RAUDONA: false };
-                await set(ref(db, 'active_points'), ap);
-                alert(`Sugeneruota: Taškai ${sel[0]} ir ${sel[1]}`);
-            });
-
-            // NFC UI generavimas ir atnaujinimas
             const nfcContainer = document.getElementById('nfc-inputs');
             for (let i = 1; i <= 5; i++) {
                 nfcContainer.innerHTML += `<div class="nfc-row"><label>TAŠKAS ${i} UID:</label><input type="text" id="nfc-input-${i}"></div>`;
