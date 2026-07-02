@@ -13,7 +13,7 @@
         .score-melyna { color: #60a5fa; }
         .score-raudona { color: #f87171; }
 
-        /* --- ŽAIDĖJO VAIZDO STILIAI --- */
+        /* --- ŽAIDĖJO VAIZDAS --- */
         #player-view { display: flex; flex-direction: column; height: 100%; }
         #player-header { background-color: var(--panel); padding: 15px; font-size: 24px; font-weight: bold; border-bottom: 2px solid #374151; text-align: center; }
         #player-timer { font-size: 48px; font-weight: bold; color: #fbbf24; margin-top: 10px; }
@@ -23,13 +23,12 @@
         .btn-melyna { background-color: var(--melyna); }
         .btn-raudona { background-color: var(--raudona); }
 
-        /* Pagrindinis slenkamas turinys */
-        .player-main-content { flex: 1; display: flex; flex-direction: column; padding: 15px; overflow-y: auto; text-align: center; }
-        .phase-title { font-size: 20px; color: #9ca3af; text-transform: uppercase; margin-bottom: 10px; font-weight: bold; }
-        .active-points-container { font-size: 20px; margin-bottom: 15px; }
+        .player-main-content { flex: 1; display: flex; flex-direction: column; padding: 20px; overflow-y: auto; text-align: center; }
+        .phase-title { font-size: 20px; color: #9ca3af; text-transform: uppercase; margin-bottom: 10px; }
+        .active-points-container { font-size: 28px; margin-bottom: 20px; }
         
-        .phase4-list { text-align: left; background: var(--panel); padding: 10px; border-radius: 10px; margin-bottom: 15px; }
-        .phase4-item { padding: 8px 0; border-bottom: 1px solid #374151; font-size: 16px; display: flex; justify-content: space-between; }
+        .phase4-list { text-align: left; background: var(--panel); padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+        .phase4-item { padding: 10px 0; border-bottom: 1px solid #374151; font-size: 18px; display: flex; justify-content: space-between; }
         .phase4-item:last-child { border-bottom: none; }
         
         .status-idle { color: #9ca3af; } 
@@ -39,28 +38,38 @@
         
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-        /* --- INTEGRUOTAS ŽEMĖLAPIS --- */
-        .embedded-map-container { position: relative; width: 100%; max-width: 600px; margin: 0 auto 20px auto; border: 2px solid #374151; border-radius: 10px; overflow: hidden; background-color: #000; }
-        .embedded-map-container img { width: 100%; display: block; opacity: 0.85; }
+        #nfc-status { font-size: 16px; color: #9ca3af; margin-bottom: 10px; }
+        .nfc-button { background-color: #10b981; color: white; border: none; padding: 20px; font-size: 22px; border-radius: 50px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); margin-top: auto; margin-bottom: 10px; }
+        .nfc-button:active { transform: scale(0.95); }
         
-        .map-marker { position: absolute; width: 24px; height: 24px; background-color: #4b5563; border: 2px solid white; border-radius: 50%; color: white; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 12px; transform: translate(-50%, -50%); box-shadow: 0 4px 6px rgba(0,0,0,0.5); transition: all 0.3s ease; }
+        .btn-map-toggle { background-color: #3b82f6; color: white; border: none; padding: 15px; font-size: 18px; border-radius: 10px; font-weight: bold; cursor: pointer; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);}
+
+        /* --- ŽEMĖLAPIO MODALAS --- */
+        #map-modal { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: #000; z-index: 200; display: flex; flex-direction: column; }
+        #map-header { background-color: var(--panel); padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #374151; }
+        #map-header h2 { margin: 0; font-size: 20px; color: white; }
+        .btn-close-map { background-color: #ef4444; color: white; border: none; padding: 10px 20px; font-size: 16px; font-weight: bold; border-radius: 5px; cursor: pointer; }
         
-        .marker-active { background-color: #fbbf24; border-color: white; animation: pulse 1s infinite; z-index: 10; width: 32px; height: 32px; font-size: 16px;}
-        .marker-ready { background-color: #10b981; border-color: white; animation: pulse 1s infinite; z-index: 10; width: 32px; height: 32px; font-size: 16px;}
+        /* Žemėlapio konteineris leidžia slankioti vaizdą, jei nuotrauka didelė */
+        .map-container { flex: 1; overflow: auto; position: relative; background-color: #111; display: flex; justify-content: center; align-items: flex-start; }
+        .map-wrapper { position: relative; display: inline-block; min-width: 600px; width: 100%; max-width: 800px; }
+        .map-wrapper img { width: 100%; height: auto; display: block; opacity: 0.8; }
+        
+        /* Žemėlapio taškai (Pin'ai) */
+        .map-marker { position: absolute; width: 30px; height: 30px; background-color: #4b5563; border: 3px solid white; border-radius: 50%; color: white; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 14px; transform: translate(-50%, -50%); box-shadow: 0 4px 6px rgba(0,0,0,0.5); transition: all 0.3s ease; }
+        
+        /* Taškų būsenų klasės žemėlapiui */
+        .marker-active { background-color: #fbbf24; border-color: white; animation: pulse 1s infinite; z-index: 10; width: 40px; height: 40px; font-size: 18px;}
+        .marker-ready { background-color: #10b981; border-color: white; animation: pulse 1s infinite; z-index: 10; }
         .marker-claimed-melyna { background-color: var(--melyna); border-color: white; }
         .marker-claimed-raudona { background-color: var(--raudona); border-color: white; }
 
-        /* TIKSLIOS TAVO NURODYTOS KOORDINATĖS */
-        #marker-1 { top: 15%; left: 80%; }
-        #marker-2 { top: 32%; left: 65%; }
-        #marker-3 { top: 50%; left: 50%; }
-        #marker-4 { top: 68%; left: 35%; }
-        #marker-5 { top: 85%; left: 20%; }
-
-        /* NFC Mygtukas */
-        #nfc-status { font-size: 14px; color: #9ca3af; margin-bottom: 10px; }
-        .nfc-button { background-color: #10b981; color: white; border: none; padding: 20px; font-size: 20px; border-radius: 50px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); margin-top: auto; margin-bottom: 20px; width: 100%; max-width: 600px; margin-left: auto; margin-right: auto;}
-        .nfc-button:active { transform: scale(0.95); }
+        /* PRELIMINARIOS KOORDINATĖS (Pakeisime, kai pasakysi tikslias) */
+        #marker-1 { top: 20%; left: 50%; }
+        #marker-2 { top: 40%; left: 30%; }
+        #marker-3 { top: 45%; left: 70%; }
+        #marker-4 { top: 75%; left: 50%; }
+        #marker-5 { top: 90%; left: 30%; }
 
         /* --- ADMIN VAIZDO STILIAI --- */
         #admin-view { overflow-y: auto; height: 100%; padding-bottom: 50px; }
@@ -108,17 +117,28 @@
             <div class="phase-title" id="phase-title">1 ETAPAS: PASIRUOŠIMAS</div>
             <div id="points-display" class="active-points-container"><p>Laukiama žaidimo pradžios...</p></div>
             
-            <div class="embedded-map-container">
-                <img src="https://i.ibb.co/C5yyFJzK/IMG-6223.jpg" alt="Poligono žemėlapis">
+            <button class="btn-map-toggle" onclick="toggleMap()">🗺️ ATIDARYTI ŽEMĖLAPĮ</button>
+            
+            <div id="nfc-status">Pasiruošta. Paspauskite mygtuką NFC aktyvavimui.</div>
+            <button id="start-nfc-btn" class="nfc-button">AKTYVUOTI NFC SKAITYTUVĄ</button>
+        </div>
+    </div>
+
+    <div id="map-modal" class="hidden">
+        <div id="map-header">
+            <h2>Poligono Žemėlapis</h2>
+            <button class="btn-close-map" onclick="toggleMap()">Grįžti atgal</button>
+        </div>
+        <div class="map-container">
+            <div class="map-wrapper">
+                <img src="map.jpg" alt="Poligono žemėlapis">
+                
                 <div class="map-marker" id="marker-1">1</div>
                 <div class="map-marker" id="marker-2">2</div>
                 <div class="map-marker" id="marker-3">3</div>
                 <div class="map-marker" id="marker-4">4</div>
                 <div class="map-marker" id="marker-5">5</div>
             </div>
-            
-            <div id="nfc-status">Pasiruošta. Paspauskite mygtuką NFC aktyvavimui.</div>
-            <button id="start-nfc-btn" class="nfc-button">AKTYVUOTI NFC SKAITYTUVĄ</button>
         </div>
     </div>
 
@@ -196,6 +216,7 @@
         let currentPhase = 1;
         window.isGenerating = false;
 
+        // Vartotojo sąsajos aktyvavimas
         if (isAdmin) {
             document.getElementById('admin-view').classList.remove('hidden');
         } else {
@@ -217,7 +238,13 @@
             document.getElementById('nfc-status').innerText = `Žaidžiate kaip ${team} komanda.`;
         }
 
-        // Duomenų sinchronizavimas
+        // Žemėlapio atidarymas / uždarymas
+        window.toggleMap = function() {
+            const modal = document.getElementById('map-modal');
+            modal.classList.toggle('hidden');
+        }
+
+        // Duomenų sinchronizavimas ir ŽEMĖLAPIO ATNAUJINIMAS
         onValue(ref(db), (snapshot) => {
             dbState = snapshot.val();
             if (!dbState) return;
@@ -229,30 +256,35 @@
             } else {
                 document.getElementById('player-score-melyna').innerText = dbState.teams.MELYNA.score;
                 document.getElementById('player-score-raudona').innerText = dbState.teams.RAUDONA.score;
-                updateMapMarkers(dbState); 
+                updateMapMarkers(dbState); // Atnaujiname žemėlapio taškų spalvas!
             }
 
             handleTimers(dbState.game_state);
         });
 
+        // Būsenų atnaujinimas žemėlapyje
         function updateMapMarkers(dbData) {
+            // Pirmiausia visus atstatome į pilkus
             for(let i=1; i<=5; i++) {
                 let marker = document.getElementById(`marker-${i}`);
                 marker.className = 'map-marker'; 
             }
 
+            // Jei 2 ar 3 etapas (Aktyvūs taškai)
             if (currentPhase === 2 || currentPhase === 3) {
                 if (dbData.active_points) {
                     for (let pointId in dbData.active_points) {
                         let pNum = pointId.split('_')[1];
                         let marker = document.getElementById(`marker-${pNum}`);
                         let scannedByUs = dbData.active_points[pointId][`scanned_${window.currentTeam}`];
+                        // Jei dar nepasiėmėme, taškas žemėlapyje pulsuoja geltonai
                         if (!scannedByUs) {
                             marker.classList.add('marker-active');
                         }
                     }
                 }
             } 
+            // Jei 4 etapas (Dominavimas)
             else if (currentPhase === 4) {
                 if (dbData.phase4_points) {
                     for (let i=1; i<=5; i++) {
@@ -260,9 +292,9 @@
                         let marker = document.getElementById(`marker-${i}`);
                         
                         if (pData.state === "unlocking") {
-                            marker.classList.add('marker-active'); 
+                            marker.classList.add('marker-active'); // Geltonas atsirakinantis
                         } else if (pData.state === "ready" || (pData.state === "unlocking" && pData.unlocksAt <= Date.now())) {
-                            marker.classList.add('marker-ready'); 
+                            marker.classList.add('marker-ready'); // Žalias paruoštas
                         } else if (pData.state === "claimed") {
                             if (pData.claimedBy === "MELYNA") marker.classList.add('marker-claimed-melyna');
                             if (pData.claimedBy === "RAUDONA") marker.classList.add('marker-claimed-raudona');
@@ -271,6 +303,10 @@
                 }
             }
         }
+
+        // ==========================================
+        //         LAIKO IR VARIKLIO LOGIKA
+        // ==========================================
 
         function updateAdminNfcInputs() {
             if (!dbState || !dbState.nfc_mapping) return;
@@ -325,7 +361,7 @@
                 let pNum = pointId.split('_')[1];
                 let scannedByUs = activePoints[pointId][`scanned_${window.currentTeam}`];
                 let color = scannedByUs ? '#10b981' : '#fbbf24'; 
-                html += `<span style="display:inline-block; margin: 8px; padding: 5px 15px; background: #374151; border: 2px solid ${color}; border-radius: 8px; font-size: 16px;">Taškas ${pNum}</span>`;
+                html += `<span style="display:inline-block; margin: 10px; padding: 10px 20px; background: #374151; border: 2px solid ${color}; border-radius: 10px;">Taškas ${pNum}</span>`;
             }
             return html;
         }
@@ -426,7 +462,7 @@
                     
                     if (!isAdmin) {
                         updatePhaseDisplay(elapsedTime, dbState);
-                        updateMapMarkers(dbState); 
+                        updateMapMarkers(dbState); // Gyvas žemėlapio atnaujinimas
                     }
                 }, 1000);
             }
