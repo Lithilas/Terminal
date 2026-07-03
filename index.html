@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Airsoft: Dominavimas</title>
+    <title>Lithilas Terminal</title>
     <style>
         :root { --melyna: #1e3a8a; --raudona: #991b1b; --bg: #111827; --text: #f3f4f6; --panel: #1f2937; }
         body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
@@ -34,11 +34,11 @@
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
         /* KOORDINATĖS */
-        #marker-1 { top: 16%; left: 65%; } 
-        #marker-2 { top: 32%; left: 58%; } 
-        #marker-3 { top: 48%; left: 50%; } 
-        #marker-4 { top: 64%; left: 42%; } 
-        #marker-5 { top: 80%; left: 35%; } 
+        #marker-1 { top: 21%; left: 87%; } 
+        #marker-2 { top: 32%; left: 70%; } 
+        #marker-3 { top: 48%; left: 51%; } 
+        #marker-4 { top: 59%; left: 36%; } 
+        #marker-5 { top: 73%; left: 9%; } 
 
         /* VARTOTOJO SĄSAJA VIRŠ ŽEMĖLAPIO */
         .ui-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; }
@@ -209,6 +209,7 @@
         const totalGameTimeMs = 105 * 60 * 1000;
         let currentPhase = 1;
         window.isGenerating = false;
+        let isTimeUp = false; // Kintamasis fiksuoti laiko pabaigai
 
         // Vartotojo sąsajos aktyvavimas
         if (isAdmin) {
@@ -322,15 +323,18 @@
                 displayHtml = "<p>Užimkite pozicijas. Taškai neaktyvūs.</p>";
             } 
             else if (minutesElapsed >= 10 && minutesElapsed < 40) {
-                currentPhase = 2; document.getElementById('phase-title').innerText = "2 ETAPAS: APŠILIMAS (10 tšk.)";
+                // PAKEISTA: Tekste įrašyta 4 tšk.
+                currentPhase = 2; document.getElementById('phase-title').innerText = "2 ETAPAS: APŠILIMAS (4 tšk.)";
                 displayHtml = generateActivePointsHtml(dbData.active_points);
             }
             else if (minutesElapsed >= 40 && minutesElapsed < 70) {
-                currentPhase = 3; document.getElementById('phase-title').innerText = "3 ETAPAS: TAKTIKA (15 tšk.)";
+                // PAKEISTA: Tekste įrašyta 4 tšk.
+                currentPhase = 3; document.getElementById('phase-title').innerText = "3 ETAPAS: TAKTIKA (4 tšk.)";
                 displayHtml = generateActivePointsHtml(dbData.active_points);
             }
             else {
-                currentPhase = 4; document.getElementById('phase-title').innerText = "4 ETAPAS: DOMINAVIMAS (20 tšk.)";
+                // PAKEISTA: Tekste įrašyta 3 tšk.
+                currentPhase = 4; document.getElementById('phase-title').innerText = "4 ETAPAS: DOMINAVIMAS (3 tšk.)";
                 displayHtml = generatePhase4Html(dbData.phase4_points);
             }
             
@@ -428,6 +432,7 @@
             clearInterval(timerInterval);
 
             if (state.status === "stopped") {
+                isTimeUp = false; // Resetuojame laiko būseną
                 updateTimeDisplays("01:45:00");
                 if (isAdmin) {
                     let st = document.getElementById('game-status'); st.innerText = "SUSTABDYTAS"; st.style.color = "#ef4444";
@@ -444,7 +449,15 @@
                 timerInterval = setInterval(() => {
                     let elapsedTime = Date.now() - (state.start_time + state.total_paused_ms);
                     let timeLeft = totalGameTimeMs - elapsedTime;
-                    if(timeLeft <= 0) timeLeft = 0;
+                    
+                    // PAKEISTA: Tikrinama, ar baigėsi laikas
+                    if(timeLeft <= 0) {
+                        timeLeft = 0;
+                        isTimeUp = true;
+                        clearInterval(timerInterval);
+                    } else {
+                        isTimeUp = false;
+                    }
                     
                     updateTimeDisplays(formatTime(timeLeft));
                     checkAutoRounds(elapsedTime);
@@ -471,7 +484,7 @@
         //               ŽAIDĖJO SKENAVIMAS
         // ==========================================
         if (!isAdmin) {
-            let playerNdef = null; // Pridėtas kintamasis apsaugai nuo dubliavimosi
+            let playerNdef = null; 
 
             document.getElementById('start-nfc-btn').addEventListener('click', async () => {
                 if (!window.currentTeam) { alert("Pirma pasirinkite komandą!"); return; }
@@ -486,12 +499,17 @@
                         }
                         document.getElementById('nfc-status').innerText = "NFC SKAITYTUVAS AKTYVUS. Glauskite telefoną.";
                         document.getElementById('nfc-status').style.color = "#10b981";
-                        // PATAISYTA: Pašalinta eilutė, kuri paslėpdavo mygtuką!
                     } catch (error) { alert("NFC Klaida: " + error.message); }
                 } else { alert("NFC nepalaikomas šioje naršyklėje."); }
             });
 
             async function handleNfcScan(nfcUid) {
+                // PAKEISTA: Papildoma sąlyga apsaugai pasibaigus laikui
+                if (isTimeUp) {
+                    alert("Laikas baigėsi! Žaidimas baigtas, skenuoti nebegalima.");
+                    return;
+                }
+
                 if (dbState.game_state.status !== "running") { alert("Žaidimas šiuo metu sustabdytas!"); return; }
 
                 let foundPointId = null;
@@ -509,7 +527,8 @@
                     if (activeData.is_decoy) { alert("⚠️ NETIKRAS TAŠKAS! Čia taškų nėra!"); return; }
                     if (activeData[`scanned_${window.currentTeam}`]) { alert("Jau pasiėmėte šį tašką!"); return; }
 
-                    let pts = (currentPhase === 2) ? 10 : 15;
+                    // PAKEISTA: Balai pakeisti į 4
+                    let pts = 4;
                     updates[`teams/${window.currentTeam}/score`] = increment(pts);
                     updates[`active_points/${foundPointId}/scanned_${window.currentTeam}`] = true;
                     await update(ref(db), updates);
@@ -528,9 +547,10 @@
                         else {
                             updates[`phase4_points/${foundPointId}/state`] = "claimed";
                             updates[`phase4_points/${foundPointId}/claimedBy`] = window.currentTeam;
-                            updates[`teams/${window.currentTeam}/score`] = increment(20);
+                            // PAKEISTA: Balai pakeisti į 3
+                            updates[`teams/${window.currentTeam}/score`] = increment(3);
                             await update(ref(db), updates);
-                            alert(`PERGALĖ! Taškas ${pNum} užimtas. Gavote 20 tšk!`);
+                            alert(`PERGALĖ! Taškas ${pNum} užimtas. Gavote 3 tšk!`);
                         }
                     }
                     else if (p4Data.state === "claimed") alert(`Per vėlu, užėmė ${p4Data.claimedBy}!`);
