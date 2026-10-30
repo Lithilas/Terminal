@@ -2,663 +2,783 @@
 <html lang="lt">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Lithilas Terminal</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#F4F5F7">
+    <title>Lithilas terminalas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=Barlow+Condensed:wght@600;700&display=swap">
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <style>
-        :root { --melyna: #1e3a8a; --raudona: #991b1b; --bg: #111827; --text: #f3f4f6; --panel: #1f2937; }
-        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
-        
+        :root {
+            --bg: #F4F5F7; --surface: #FFFFFF; --line: #D9DCE2; --line-strong: #C3C8D1;
+            --ink: #14171C; --muted: #5B6270;
+            --red: #D92D27; --red-ink: #B3211C; --blue: #1F5FD6; --green: #1E7B3C;
+            --tint-red: #FBE9E8; --tint-blue: #E6EEFB; --gray-dot: #9AA1AE;
+        }
+        * { box-sizing: border-box; }
+        body { font-family: 'Barlow', system-ui, sans-serif; background: var(--bg); color: var(--ink); margin: 0; padding: 28px 16px 56px; font-size: 16px; line-height: 1.4; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; height: 6px; background: var(--ink); z-index: 5; transition: background-color .4s; }
+        body.team-red::before { background: var(--red); }
+        body.team-blue::before { background: var(--blue); }
+
         .hidden { display: none !important; }
-        .score-melyna { color: #60a5fa; }
-        .score-raudona { color: #f87171; }
+        .wrap { max-width: 520px; margin: 0 auto; }
+        h1 { font: 700 2.3rem/1.1 'Barlow Condensed', sans-serif; margin: 0 0 4px; }
+        h3 { font-size: .95rem; font-weight: 600; color: var(--muted); margin: 0 0 6px; }
+        p { margin: 0; }
+        .muted { color: var(--muted); }
+        .small { font-size: .85rem; }
+        .eyebrow { font-weight: 600; color: var(--muted); margin-bottom: 6px; display: flex; align-items: center; }
+        .ok { color: var(--green); } .bad { color: var(--red-ink); }
+        :focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 
-        /* --- ŽAIDĖJO VAIZDO STILIAI --- */
-        #player-view { position: relative; width: 100%; height: 100%; }
-        
-        #team-select-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(17, 24, 39, 0.95); z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        .team-btn { padding: 20px 40px; font-size: 28px; font-weight: bold; margin: 15px; border: none; border-radius: 10px; cursor: pointer; color: white; width: 80%; }
-        .btn-melyna { background-color: var(--melyna); }
-        .btn-raudona { background-color: var(--raudona); }
+        .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; margin-bottom: 14px; }
+        .time { font: 700 clamp(2rem, 9.5vw, 3.1rem)/1.05 'Barlow Condensed', sans-serif; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .strip { display: flex; gap: 12px; margin-bottom: 14px; }
+        .strip > .card, .strip > .stat { flex: 1; min-width: 0; margin-bottom: 0; }
+        .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; flex-shrink: 0; background: var(--gray-dot); }
+        .dot.red { background: var(--red); } .dot.blue { background: var(--blue); } .dot.green { background: var(--green); } .dot.ink { background: var(--ink); }
 
-        /* ŽEMĖLAPIS FONE */
-        .map-background { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background-color: #050505; z-index: 1; }
-        .image-wrapper { position: relative; display: inline-block; max-width: 100%; max-height: 100%; }
-        .image-wrapper img { max-width: 100vw; max-height: 100vh; display: block; opacity: 0.6; object-fit: contain; }
+        .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 12px 16px; display: flex; flex-direction: column; }
+        .stat.me-red { border: 2px solid var(--red); background: var(--tint-red); }
+        .stat.me-blue { border: 2px solid var(--blue); background: var(--tint-blue); }
+        .stat .lbl { font-size: .9rem; color: var(--muted); font-weight: 600; display: flex; align-items: center; }
+        .stat b { font: 700 2.6rem/1.1 'Barlow Condensed', sans-serif; font-variant-numeric: tabular-nums; }
 
-        .map-marker { position: absolute; width: 28px; height: 28px; background-color: #4b5563; border: 2px solid white; border-radius: 50%; color: white; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 14px; transform: translate(-50%, -50%); box-shadow: 0 4px 6px rgba(0,0,0,0.8); transition: all 0.3s ease; text-shadow: 1px 1px 2px black;}
-        .marker-active { background-color: #fbbf24; border-color: white; animation: pulse 1s infinite; z-index: 10; width: 36px; height: 36px; font-size: 18px;}
-        .marker-ready { background-color: #10b981; border-color: white; animation: pulse 1s infinite; z-index: 10; width: 36px; height: 36px; font-size: 18px;}
-        .marker-claimed-melyna { background-color: var(--melyna); border-color: white; }
-        .marker-claimed-raudona { background-color: var(--raudona); border-color: white; }
+        .btn { min-height: 56px; padding: 12px 18px; font: 600 1.05rem 'Barlow', sans-serif; border-radius: 14px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); cursor: pointer; width: 100%; margin-top: 10px; transition: transform .1s; }
+        .btn:active { transform: scale(.985); }
+        .btn:disabled { opacity: .5; cursor: not-allowed; }
+        .btn-primary { background: var(--ink); border-color: var(--ink); color: #fff; }
+        .btn-danger { border-color: var(--red); color: var(--red-ink); }
+        .btn-danger-solid { background: var(--red); border-color: var(--red); color: #fff; }
+        .btn-sm { min-height: 44px; padding: 8px 14px; width: auto; margin-top: 0; }
+        .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .choice { display: flex; align-items: center; justify-content: center; min-height: 64px; margin-top: 0; font-size: 1.2rem; }
+        .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
 
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        .banner { background: var(--ink); color: #fff; border-radius: 14px; padding: 12px 18px; margin-bottom: 14px; font-weight: 600; }
+        .nfc-line { display: flex; align-items: center; font-weight: 600; }
+        .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+        .chip { display: inline-flex; align-items: center; padding: 8px 14px; border: 1px solid var(--line-strong); border-radius: 99px; font-weight: 600; background: var(--surface); }
+        .chip.done { background: var(--bg); color: var(--muted); }
+        .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); font-weight: 600; }
+        .row:first-child { border-top: 0; padding-top: 0; }
+        .row:last-child { padding-bottom: 0; }
+        .row .r { color: var(--muted); display: flex; align-items: center; text-align: right; }
+        .row .r.go { color: var(--green); }
 
-        /* KOORDINATĖS */
-        #marker-1 { top: 21%; left: 87%; } 
-        #marker-2 { top: 32%; left: 70%; } 
-        #marker-3 { top: 48%; left: 51%; } 
-        #marker-4 { top: 59%; left: 36%; } 
-        #marker-5 { top: 73%; left: 9%; } 
+        /* Žemėlapis */
+        .map { position: relative; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--surface); margin-bottom: 14px; }
+        .map img { width: 100%; display: block; min-height: 120px; }
+        .mk { position: absolute; width: 30px; height: 30px; border-radius: 50%; transform: translate(-50%, -50%); border: 3px solid #fff; box-shadow: 0 1px 4px rgba(20,23,28,.45); background: var(--gray-dot); color: #fff; display: flex; align-items: center; justify-content: center; font: 700 1rem 'Barlow Condensed', sans-serif; }
+        .mk.active { background: var(--ink); animation: pulse 1.1s infinite; }
+        .mk.done { background: var(--green); }
+        .mk.ready { background: var(--green); animation: pulse 1.1s infinite; }
+        .mk.red { background: var(--red); } .mk.blue { background: var(--blue); }
+        @keyframes pulse { 0%, 100% { transform: translate(-50%, -50%) scale(1); } 50% { transform: translate(-50%, -50%) scale(1.18); } }
+        #mk1 { top: 21%; left: 87%; } #mk2 { top: 32%; left: 70%; } #mk3 { top: 48%; left: 51%; } #mk4 { top: 59%; left: 36%; } #mk5 { top: 73%; left: 9%; }
+        .map-fallback { padding: 28px 16px; text-align: center; color: var(--muted); }
 
-        /* VARTOTOJO SĄSAJA VIRŠ ŽEMĖLAPIO */
-        .ui-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; }
-        .ui-top, .ui-bottom { pointer-events: auto; width: 100%; text-align: center; }
-        
-        #player-header { padding: 10px; font-size: 20px; font-weight: bold; color: white; text-shadow: 2px 2px 4px black; }
-        #player-timer { font-size: 48px; font-weight: bold; color: #fbbf24; margin-top: 5px; text-shadow: 2px 2px 4px black; }
-        
-        .scores { display: flex; justify-content: space-around; padding: 10px 0; font-size: 24px; font-weight: bold; background: transparent; border: none; text-shadow: 2px 2px 4px black; }
-        
-        .phase-info-box { padding: 5px; }
-        .phase-title { font-size: 20px; color: #f3f4f6; text-transform: uppercase; margin-bottom: 5px; font-weight: bold; text-shadow: 2px 2px 4px black; }
-        .active-points-container { font-size: 20px; margin-bottom: 10px; text-shadow: 2px 2px 4px black; }
-        
-        .phase4-list { text-align: left; background: rgba(31, 41, 55, 0.85); padding: 10px; border-radius: 10px; margin: 0 15px 15px 15px; border: 1px solid #374151; pointer-events: auto;}
-        .phase4-item { padding: 8px 0; border-bottom: 1px solid #374151; font-size: 16px; display: flex; justify-content: space-between; }
-        .phase4-item:last-child { border-bottom: none; }
-        .status-idle { color: #9ca3af; } 
-        .status-unlocking { color: #fbbf24; } 
-        .status-ready { color: #10b981; font-weight: bold; animation: pulse 1.5s infinite; } 
-        .status-claimed { color: #f87171; } 
+        .result-title { font: 700 clamp(2.4rem, 12vw, 3.4rem)/1.05 'Barlow Condensed', sans-serif; margin: 2px 0 6px; }
 
-        .nfc-action-box { padding: 15px; padding-bottom: 30px; }
-        #nfc-status { font-size: 16px; color: #f3f4f6; margin-bottom: 10px; font-weight: bold; text-shadow: 2px 2px 4px black; }
-        .nfc-button { background-color: #10b981; color: white; border: none; padding: 20px; font-size: 20px; border-radius: 50px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5); width: 100%; max-width: 600px;}
-        .nfc-button:active { transform: scale(0.95); }
+        /* Admin */
+        .status-chip { display: inline-flex; align-items: center; font-weight: 600; }
+        .score-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+        .score-row:first-of-type { border-top: 0; padding-top: 0; }
+        .score-row b { font: 700 2rem 'Barlow Condensed', sans-serif; margin: 0 8px; }
+        .score-btns { display: flex; gap: 8px; }
+        .nfc-row { display: grid; grid-template-columns: 70px 1fr auto; gap: 8px; align-items: center; margin-bottom: 8px; font-weight: 600; }
+        input[type="text"] { padding: 10px 12px; font: 600 1rem 'Barlow', monospace; background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 12px; min-width: 0; width: 100%; }
+        .log { max-height: 260px; overflow-y: auto; }
+        .log div { padding: 6px 0; border-top: 1px solid var(--line); font-size: .92rem; }
+        .log div:first-child { border-top: 0; }
+        .log span { color: var(--muted); margin-right: 8px; font-variant-numeric: tabular-nums; }
 
-        /* --- ADMIN VAIZDO STILIAI --- */
-        #admin-view { overflow-y: auto; height: 100%; padding-bottom: 50px; }
-        #admin-header { background-color: var(--panel); padding: 15px; text-align: center; font-size: 20px; font-weight: bold; border-bottom: 2px solid #374151; position: sticky; top: 0; z-index: 10; }
-        #admin-timer { font-size: 40px; font-weight: bold; color: #fbbf24; margin-top: 5px; }
-        #game-status { font-size: 16px; color: #10b981; text-transform: uppercase; }
-        .admin-section { background-color: var(--panel); margin: 15px; padding: 15px; border-radius: 10px; border: 1px solid #374151; }
-        .section-title { font-size: 18px; color: #9ca3af; border-bottom: 1px solid #374151; padding-bottom: 10px; margin-bottom: 15px; text-transform: uppercase; }
-        .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .btn { padding: 15px; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; color: white; width: 100%; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
-        .btn:active { transform: scale(0.97); }
-        .btn-start { background-color: #10b981; }
-        .btn-pause { background-color: #f59e0b; }
-        .btn-reset { background-color: #ef4444; grid-column: span 2; margin-top: 10px; }
-        .score-control { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 20px; font-weight: bold; }
-        .score-btn { width: 40px; height: 40px; font-size: 20px; border: none; border-radius: 5px; background-color: #4b5563; color: white; cursor: pointer; }
-        .nfc-row { display: flex; align-items: center; margin-bottom: 10px; gap: 10px; }
-        .nfc-row label { font-size: 14px; color: #d1d5db; min-width: 80px; }
-        .nfc-row input { flex: 1; padding: 10px; background-color: #111827; border: 1px solid #4b5563; color: white; border-radius: 5px; font-family: monospace; }
-        .btn-scan-admin { padding: 10px 15px; background-color: #3b82f6; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 14px;}
-        .btn-scan-admin:active { transform: scale(0.95); }
-        .btn-save-nfc { background-color: #8b5cf6; margin-top: 10px; width: 100%; padding: 15px; border-radius: 8px; border: none; color: white; font-weight: bold; font-size: 16px;}
+        #conn-banner { position: fixed; top: 6px; left: 0; right: 0; z-index: 150; background: var(--red-ink); color: #fff; text-align: center; padding: 6px 12px; font-weight: 600; font-size: .9rem; }
+        .modal { position: fixed; inset: 0; background: rgba(20,23,28,.5); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 16px; }
+        .modal-box { background: var(--surface); padding: 24px; border-radius: 20px; width: 100%; max-width: 400px; box-shadow: 0 24px 60px rgba(20,23,28,.3); }
+        .modal-box h3 { font: 700 1.7rem 'Barlow Condensed', sans-serif; color: var(--ink); margin: 0 0 8px; }
+        .modal-box input[type="text"] { margin: 10px 0 4px; font-family: 'Barlow', sans-serif; font-size: 1.15rem; }
+        .modal-row { display: flex; gap: 10px; margin-top: 14px; }
+        .modal-row .btn { margin: 0; }
+        #toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%) translateY(140px); background: var(--ink); color: #fff; padding: 14px 20px; border-radius: 12px; z-index: 10000; max-width: 90%; text-align: center; opacity: 0; transition: .3s; pointer-events: none; font-weight: 600; }
+        #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        #toast.err { background: var(--red-ink); } #toast.good { background: var(--green); }
+
+        @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
     </style>
 </head>
 <body>
+<div id="conn-banner" class="hidden" role="status">Nėra ryšio su serveriu</div>
 
-    <div id="player-view" class="hidden">
-        <div id="team-select-screen" class="hidden">
-            <h1 style="margin-bottom: 40px;">PASIRINKITE KOMANDĄ</h1>
-            <button class="team-btn btn-melyna" onclick="selectTeam('MELYNA')">MĖLYNA</button>
-            <button class="team-btn btn-raudona" onclick="selectTeam('RAUDONA')">RAUDONA</button>
+<div class="wrap">
+
+    <section id="s-loading">
+        <h1 id="loading-title">Jungiamasi...</h1>
+        <p id="loading-sub" class="muted">Sinchronizuojama su serveriu</p>
+    </section>
+
+    <!-- Komandos pasirinkimas -->
+    <section id="s-team" class="hidden">
+        <h1>Pasirinkite komandą</h1>
+        <p class="muted" style="margin-bottom:18px;">Pasirinkimas išsaugomas šiame telefone.</p>
+        <div class="choices" style="grid-template-columns:1fr;">
+            <button class="btn choice" onclick="selectTeam('MELYNA')"><i class="dot blue"></i>Mėlyna</button>
+            <button class="btn choice" onclick="selectTeam('RAUDONA')"><i class="dot red"></i>Raudona</button>
+        </div>
+    </section>
+
+    <!-- Žaidėjas -->
+    <section id="s-player" class="hidden">
+        <div class="eyebrow"><i class="dot" id="p-team-dot"></i><span id="p-team-line"></span></div>
+        <h1 id="p-phase">Laukiama starto</h1>
+        <p id="p-sub" class="muted" style="margin-bottom:14px;"></p>
+
+        <div id="p-banner" class="banner hidden"></div>
+
+        <div class="strip">
+            <div class="card"><h3>Liko laiko</h3><div class="time" id="p-time">01:45:00</div></div>
+            <div class="card"><h3 id="p-next-label">Iki kito raundo</h3><div class="time" id="p-next">--:--</div></div>
+        </div>
+        <div class="strip">
+            <div class="stat" id="stat-MELYNA"><span class="lbl"><i class="dot blue"></i>Mėlyna</span><b id="p-score-MELYNA" style="color:var(--blue)">0</b></div>
+            <div class="stat" id="stat-RAUDONA"><span class="lbl"><i class="dot red"></i>Raudona</span><b id="p-score-RAUDONA" style="color:var(--red)">0</b></div>
         </div>
 
-        <div class="map-background">
-            <div class="image-wrapper">
-                <img src="https://i.ibb.co/C5yyFJzK/IMG-6223.jpg" alt="Poligono žemėlapis">
-                <div class="map-marker" id="marker-1">1</div>
-                <div class="map-marker" id="marker-2">2</div>
-                <div class="map-marker" id="marker-3">3</div>
-                <div class="map-marker" id="marker-4">4</div>
-                <div class="map-marker" id="marker-5">5</div>
-            </div>
+        <div id="p-result" class="card hidden">
+            <h3>Galutinis rezultatas</h3>
+            <div class="result-title" id="p-result-title"></div>
+            <p class="muted" id="p-result-sub"></p>
         </div>
 
-        <div class="ui-overlay">
-            <div class="ui-top">
-                <div id="player-header">
-                    LIKO LAIKO
-                    <div id="player-timer">01:45:00</div>
-                </div>
-
-                <div class="scores">
-                    <div class="score-melyna">MĖLYNA: <span id="player-score-melyna">0</span></div>
-                    <div class="score-raudona">RAUDONA: <span id="player-score-raudona">0</span></div>
-                </div>
-
-                <div class="phase-info-box">
-                    <div class="phase-title" id="phase-title">1 ETAPAS: PASIRUOŠIMAS</div>
-                    <div id="points-display" class="active-points-container"><p>Laukiama žaidimo pradžios...</p></div>
-                </div>
-            </div>
-
-            <div class="ui-bottom">
-                <div class="nfc-action-box">
-                    <div id="nfc-status">Pasiruošta. Paspauskite mygtuką NFC aktyvavimui.</div>
-                    <button id="start-nfc-btn" class="nfc-button">AKTYVUOTI NFC SKAITYTUVĄ</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="admin-view" class="hidden">
-        <div id="admin-header">
-            BENDRA BŪSENA: <span id="game-status">SUSTABDYTAS</span>
-            <div id="admin-timer">01:45:00</div>
+        <div class="card" id="nfc-card">
+            <div class="nfc-line"><i class="dot" id="nfc-dot"></i><span id="nfc-status">NFC skaitytuvas neaktyvuotas</span></div>
+            <button id="start-nfc-btn" class="btn btn-primary" onclick="startNfc()">Aktyvuoti NFC skaitytuvą</button>
         </div>
 
-        <div class="admin-section">
-            <div class="section-title">Žaidimo Laiko Valdymas</div>
-            <div class="controls-grid">
-                <button class="btn btn-start" id="btn-start">▶ START / RESUME</button>
-                <button class="btn btn-pause" id="btn-pause">⏸ PAUZĖ</button>
-                <button class="btn btn-reset" id="btn-reset">⏹ PERKRAUTI ŽAIDIMĄ</button>
-            </div>
+        <div class="card" id="p-points-card">
+            <h3 id="p-points-title">Taškai</h3>
+            <div id="p-points"></div>
         </div>
 
-        <div class="admin-section">
-            <div class="section-title">Žaidimo Eiga</div>
-            <p style="font-size: 14px; color: #10b981; font-weight: bold; text-align: center;">Visi taškai ir etapai generuojami AUTOMATIŠKAI pagal žaidimo laiką.</p>
+        <div class="map">
+            <img id="map-img" src="https://i.ibb.co/C5yyFJzK/IMG-6223.jpg" alt="Poligono žemėlapis" onerror="mapFail()">
+            <div id="map-fallback" class="map-fallback hidden">Žemėlapio nepavyko įkelti</div>
+            <div class="mk" id="mk1">1</div><div class="mk" id="mk2">2</div><div class="mk" id="mk3">3</div><div class="mk" id="mk4">4</div><div class="mk" id="mk5">5</div>
+        </div>
+        <button class="btn btn-sm" style="width:100%;" onclick="changeTeam()">Keisti komandą</button>
+    </section>
+
+    <!-- Žaidimo meistras -->
+    <section id="s-admin" class="hidden">
+        <div class="eyebrow">Žaidimo meistras</div>
+        <h1>Konsolė</h1>
+        <div class="card" style="margin-top:14px;">
+            <div class="status-chip"><i class="dot" id="a-dot"></i><span id="a-status">Sustabdytas</span></div>
+            <div class="time" id="a-time" style="margin-top:6px;">01:45:00</div>
+            <p class="muted small" id="a-phase" style="margin-top:4px;"></p>
         </div>
 
-        <div class="admin-section">
-            <div class="section-title">Rankinis Balų Valdymas</div>
-            <div class="score-control score-melyna">
-                MĖLYNA: <span id="admin-score-melyna">0</span>
-                <div>
-                    <button class="score-btn" onclick="adjustScore('MELYNA', -5)">-5</button>
-                    <button class="score-btn" onclick="adjustScore('MELYNA', 5)">+5</button>
-                </div>
-            </div>
-            <div class="score-control score-raudona">
-                RAUDONA: <span id="admin-score-raudona">0</span>
-                <div>
-                    <button class="score-btn" onclick="adjustScore('RAUDONA', -5)">-5</button>
-                    <button class="score-btn" onclick="adjustScore('RAUDONA', 5)">+5</button>
-                </div>
-            </div>
+        <button id="a-main" class="btn btn-primary" onclick="adminMain()">Pradėti žaidimą</button>
+        <div class="btn-row" style="margin-bottom:14px;">
+            <button class="btn btn-danger" onclick="adminReset()">Perkrauti</button>
+            <button class="btn" onclick="adminSkip()" title="Testavimui">Praleisti 10 min</button>
         </div>
 
-        <div class="admin-section">
-            <div class="section-title">NFC Kodų Priskyrimas</div>
-            <p style="font-size: 12px; color: #9ca3af; margin-bottom: 10px;">Paspauskite „Nuskaityti“, priglauskite naują tagą.</p>
+        <div class="card">
+            <h3>Dabartinis raundas</h3>
+            <div id="a-round" class="muted">Žaidimas nevyksta</div>
+        </div>
+
+        <div class="card">
+            <h3>Balai</h3>
+            <div class="score-row"><span class="status-chip"><i class="dot blue"></i>Mėlyna <b id="a-score-MELYNA" style="color:var(--blue)">0</b></span>
+                <span class="score-btns"><button class="btn btn-sm" onclick="adjustScore('MELYNA',-5)">−5</button><button class="btn btn-sm" onclick="adjustScore('MELYNA',5)">+5</button></span></div>
+            <div class="score-row"><span class="status-chip"><i class="dot red"></i>Raudona <b id="a-score-RAUDONA" style="color:var(--red)">0</b></span>
+                <span class="score-btns"><button class="btn btn-sm" onclick="adjustScore('RAUDONA',-5)">−5</button><button class="btn btn-sm" onclick="adjustScore('RAUDONA',5)">+5</button></span></div>
+        </div>
+
+        <div class="card">
+            <h3>NFC kodų priskyrimas</h3>
+            <p class="muted small" style="margin-bottom:10px;">Paspauskite „Skenuoti“ ir priglauskite tagą. Kodas išsaugomas iš karto.</p>
             <div id="nfc-inputs"></div>
-            <button class="btn-save-nfc" id="btn-save-nfc">IŠSAUGOTI RANKINIUS PAKEITIMUS</button>
+            <button class="btn" onclick="saveNfc()">Išsaugoti rankinius pakeitimus</button>
+        </div>
+
+        <div class="card">
+            <h3>Įvykių žurnalas</h3>
+            <div class="log" id="a-log"><span class="muted">Kol kas tuščia</span></div>
+        </div>
+    </section>
+</div>
+
+<!-- Patvirtinimo langas -->
+<div id="confirm-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="cm-title">
+    <div class="modal-box">
+        <h3 id="cm-title"></h3>
+        <p id="cm-text"></p>
+        <div id="cm-typebox" class="hidden">
+            <p id="cm-hint" class="muted small" style="margin-top:12px;"></p>
+            <input type="text" id="cm-input" autocomplete="off" autocapitalize="characters" aria-label="Patvirtinimo žodis">
+        </div>
+        <div class="modal-row">
+            <button class="btn" onclick="closeConfirm()">Atšaukti</button>
+            <button id="cm-ok" class="btn btn-primary" onclick="confirmOk()">Taip</button>
         </div>
     </div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<p id="sound-hint" class="muted small hidden" style="text-align:center;margin-top:8px;">Palieskite ekraną vieną kartą, kad įsijungtų garsas.</p>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getDatabase, ref, onValue, update, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyAlcqAwCrld_zxK-X_7ETMq5iGJ2eR7S5Y",
+        authDomain: "terminal-f2a5e.firebaseapp.com",
+        databaseURL: "https://terminal-f2a5e-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "terminal-f2a5e",
+        storageBucket: "terminal-f2a5e.firebasestorage.app",
+        messagingSenderId: "532522919385",
+        appId: "1:532522919385:web:83308e3689a0cf8cba25c8"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const $ = id => document.getElementById(id);
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyAlcqAwCrld_zxK-X_7ETMq5iGJ2eR7S5Y",
-            authDomain: "terminal-f2a5e.firebaseapp.com",
-            databaseURL: "https://terminal-f2a5e-default-rtdb.europe-west1.firebasedatabase.app",
-            projectId: "terminal-f2a5e",
-            storageBucket: "terminal-f2a5e.firebasestorage.app",
-            messagingSenderId: "532522919385",
-            appId: "1:532522919385:web:83308e3689a0cf8cba25c8"
-        };
+    /* ======================================================================
+       DUOMENYS
+         game_state: { status: stopped|running|paused|ended, start_time, pause_time, total_paused_ms,
+                       schedule: { r1..r6: { real: n, decoy: n|0 } } }   // sugeneruojama VIENĄ kartą starto metu
+         teams/{MELYNA|RAUDONA}/score
+         scans/r{n}/point_{k}/{TEAM}: true | 'decoy'
+         phase4_points/point_{k}: { state: idle|unlocking|claimed, unlocksAt, unlockedBy, claimedBy }
+         nfc_mapping/point_{k}: uid
+         log/{pushId}: { t, msg }
+       Raundų taškai nebegeneruojami kiekvieno telefono atskirai – schema sukuriama starto metu,
+       o aktyvus raundas apskaičiuojamas iš serverio laiko. Visi skenavimai – transakcijos.
+       ====================================================================== */
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+    const MIN = 60000;
+    const CFG = { total: 105 * MIN, prep: 10 * MIN, round: 10 * MIN, p4at: 70 * MIN, unlock: 5 * MIN, ptsReal: 4, ptsClaim: 3 };
+    const TEAMS = { MELYNA: { name: 'Mėlyna', cls: 'blue' }, RAUDONA: { name: 'Raudona', cls: 'red' } };
+    const DEF_GS = { status: 'stopped', start_time: 0, pause_time: 0, total_paused_ms: 0 };
 
-        // --- URL PARAMETRAI ---
-        const urlParams = new URLSearchParams(window.location.search);
-        const isAdmin = (urlParams.get('role') === 'admin');
-        const urlTeam = urlParams.get('team');
+    const params = new URLSearchParams(location.search);
+    const isAdmin = params.get('role') === 'admin';
+    let myTeam = null;
+    if (!isAdmin) {
+        const u = (params.get('team') || '').toLowerCase();
+        if (u === 'melyna') myTeam = 'MELYNA'; else if (u === 'raudona') myTeam = 'RAUDONA';
+        else { try { const s = localStorage.getItem('lt_team'); if (TEAMS[s]) myTeam = s; } catch (e) {} }
+    }
 
-        let dbState = null;
-        let timerInterval;
-        const totalGameTimeMs = 105 * 60 * 1000;
-        let currentPhase = 1;
-        window.isGenerating = false;
-        let isTimeUp = false; // Kintamasis fiksuoti laiko pabaigai
+    /* ---------- Serverio laikas ---------- */
+    let serverOffset = 0;
+    const now = () => Date.now() + serverOffset;
+    db.ref('.info/serverTimeOffset').on('value', s => { serverOffset = s.val() || 0; });
 
-        // Vartotojo sąsajos aktyvavimas
-        if (isAdmin) {
-            document.getElementById('admin-view').classList.remove('hidden');
-        } else {
-            document.getElementById('player-view').classList.remove('hidden');
-            if (urlTeam === 'melyna') {
-                window.currentTeam = 'MELYNA';
-                document.getElementById('nfc-status').innerText = `Žaidžiate kaip MĖLYNA komanda.`;
-            } else if (urlTeam === 'raudona') {
-                window.currentTeam = 'RAUDONA';
-                document.getElementById('nfc-status').innerText = `Žaidžiate kaip RAUDONA komanda.`;
-            } else {
-                document.getElementById('team-select-screen').classList.remove('hidden');
-            }
+    /* ---------- Duomenų sinchronizavimas ---------- */
+    const D = {};
+    const PATHS = ['game_state', 'teams', 'scans', 'phase4_points', 'nfc_mapping'];
+    const got = new Set();
+    let ready = false;
+    PATHS.forEach(p => db.ref(p).on('value', s => {
+        D[p] = s.val(); got.add(p);
+        if (got.size === PATHS.length) { ready = true; if (isAdmin) ensureDb(); }
+        render();
+    }, err => {
+        $('loading-title').textContent = 'Ryšio klaida'; $('loading-title').className = 'bad';
+        $('loading-sub').textContent = /permission/i.test(err.message) ? 'Prieiga uždrausta. Patikrinkite Firebase taisykles.' : err.message;
+    }));
+    db.ref('.info/connected').on('value', s => $('conn-banner').classList.toggle('hidden', s.val() !== false || !ready));
+    let logData = {};
+    if (isAdmin) db.ref('log').limitToLast(40).on('value', s => { logData = s.val() || {}; renderLog(); });
+
+    function ensureDb() {
+        if (D.game_state === null || D.game_state === undefined) db.ref('game_state').transaction(c => c === null ? DEF_GS : undefined);
+        if (D.teams === null || D.teams === undefined) db.ref('teams').transaction(c => c === null ? { MELYNA: { score: 0 }, RAUDONA: { score: 0 } } : undefined);
+        if (D.phase4_points === null || D.phase4_points === undefined) db.ref('phase4_points').transaction(c => c === null ? freshP4() : undefined);
+    }
+    const freshP4 = () => { const o = {}; for (let i = 1; i <= 5; i++) o['point_' + i] = { state: 'idle', unlocksAt: 0, claimedBy: '' }; return o; };
+
+    /* ---------- Laikas ir etapai (grynosios funkcijos) ---------- */
+    const gs = () => Object.assign({}, DEF_GS, D.game_state || {});
+    function elapsedMs() {
+        const g = gs(), t = now();
+        let e = 0;
+        if (g.status === 'running') e = t - (g.start_time + g.total_paused_ms);
+        else if (g.status === 'paused') e = g.pause_time - (g.start_time + g.total_paused_ms);
+        else if (g.status === 'ended') e = CFG.total;
+        return Math.max(0, Math.min(CFG.total, e));
+    }
+    function status() {
+        const g = gs();
+        return (g.status === 'running' && elapsedMs() >= CFG.total) ? 'ended' : g.status;
+    }
+    const phaseOf = e => e < CFG.prep ? 1 : e < 40 * MIN ? 2 : e < CFG.p4at ? 3 : 4;
+    const roundOf = e => (e < CFG.prep || e >= CFG.p4at) ? 0 : Math.floor((e - CFG.prep) / CFG.round) + 1;
+    const fmtHMS = ms => {
+        const s = Math.max(0, Math.ceil(ms / 1000));
+        return [Math.floor(s / 3600), Math.floor((s % 3600) / 60), s % 60].map(n => String(n).padStart(2, '0')).join(':');
+    };
+    const fmtMS = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+    const score = t => ((D.teams || {})[t] || {}).score || 0;
+    const p4 = k => Object.assign({ state: 'idle', unlocksAt: 0, claimedBy: '' }, (D.phase4_points || {})['point_' + k] || {});
+    const scanOf = (r, k, team) => (((D.scans || {})['r' + r] || {})['point_' + k] || {})[team];
+    const sched = r => (gs().schedule || {})['r' + r];
+
+    function makeSchedule() {
+        const shuffle = a => a.map(v => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map(x => x[1]);
+        const first = shuffle([1, 2, 3, 4, 5]);
+        const s = {};
+        for (let r = 1; r <= 3; r++) s['r' + r] = { real: first[r - 1], decoy: 0 };
+        for (let r = 4; r <= 6; r++) { const pair = shuffle([1, 2, 3, 4, 5]).slice(0, 2); s['r' + r] = { real: pair[0], decoy: pair[1] }; }
+        return s;
+    }
+
+    /* ---------- Atvaizdavimas ---------- */
+    const htmlCache = {};
+    function setHtml(id, html) { if (htmlCache[id] !== html) { htmlCache[id] = html; $(id).innerHTML = html; } }
+    const SCREENS = ['s-loading', 's-team', 's-player', 's-admin'];
+    let shown = null;
+    function show(id) { if (shown !== id) { shown = id; SCREENS.forEach(s => $(s).classList.toggle('hidden', s !== id)); } }
+
+    let prev = null;
+    function render() {
+        if (!ready) return;
+        const st = status(), e = elapsedMs(), ph = phaseOf(e), r = roundOf(e);
+        if (st === 'ended' && gs().status === 'running') endGameOnce();
+        if (isAdmin) renderAdmin(st, e, ph, r); else renderPlayer(st, e, ph, r);
+        notifyChanges(st, ph, r);
+    }
+    setInterval(render, 500);
+
+    let endingSent = false;
+    function endGameOnce() {
+        if (endingSent) return; endingSent = true;
+        db.ref('game_state').transaction(c => (c && c.status === 'running') ? Object.assign({}, c, { status: 'ended' }) : undefined);
+        setTimeout(() => { endingSent = false; }, 5000);
+    }
+
+    function phaseTitle(st, ph) {
+        if (st === 'stopped') return 'Laukiama starto';
+        if (st === 'ended') return 'Žaidimas baigtas';
+        return ['', '1 etapas · pasiruošimas', '2 etapas · apšilimas', '3 etapas · taktika', '4 etapas · dominavimas'][ph];
+    }
+
+    function renderPlayer(st, e, ph, r) {
+        if (!myTeam) { show('s-team'); return; }
+        show('s-player');
+        document.body.classList.toggle('team-red', myTeam === 'RAUDONA');
+        document.body.classList.toggle('team-blue', myTeam === 'MELYNA');
+        $('p-team-dot').className = 'dot ' + TEAMS[myTeam].cls;
+        $('p-team-line').textContent = `${TEAMS[myTeam].name} komanda`;
+        $('p-phase').textContent = phaseTitle(st, ph);
+        const live = st === 'running' || st === 'paused';
+        let sub = '';
+        if (st === 'stopped') sub = 'Žaidimo meistras dar nepradėjo žaidimo.';
+        else if (live && ph === 1) sub = 'Užimkite pozicijas. Taškai neaktyvūs.';
+        else if (live && ph <= 3) sub = `Raundas ${r} iš 6 · skenuokite aktyvų tašką: +${CFG.ptsReal} tšk.`;
+        else if (live) sub = `Atrakinkite ir užimkite taškus: +${CFG.ptsClaim} tšk. už kiekvieną.`;
+        $('p-sub').textContent = sub;
+
+        const bn = $('p-banner');
+        bn.classList.toggle('hidden', st !== 'paused');
+        bn.textContent = 'Žaidimas sustabdytas – skenuoti negalima';
+
+        $('p-time').textContent = fmtHMS(st === 'stopped' ? CFG.total : CFG.total - e);
+        let nextLbl = 'Iki kito raundo', nextVal = '--:--';
+        if (live) {
+            if (ph === 1) { nextLbl = 'Iki pirmo taško'; nextVal = fmtMS(CFG.prep - e); }
+            else if (ph <= 3) { nextLbl = r >= 6 ? 'Iki 4 etapo' : 'Iki kito raundo'; nextVal = fmtMS(CFG.prep + r * CFG.round - e); }
+            else { nextLbl = 'Užimta taškų'; nextVal = [1, 2, 3, 4, 5].filter(k => p4(k).state === 'claimed').length + ' / 5'; }
         }
+        $('p-next-label').textContent = nextLbl; $('p-next').textContent = nextVal;
 
-        window.selectTeam = function(team) {
-            window.currentTeam = team;
-            document.getElementById('team-select-screen').classList.add('hidden');
-            document.getElementById('nfc-status').innerText = `Žaidžiate kaip ${team} komanda.`;
-        }
-
-        // Duomenų sinchronizavimas
-        onValue(ref(db), (snapshot) => {
-            dbState = snapshot.val();
-            if (!dbState) return;
-
-            if (isAdmin) {
-                document.getElementById('admin-score-melyna').innerText = dbState.teams.MELYNA.score;
-                document.getElementById('admin-score-raudona').innerText = dbState.teams.RAUDONA.score;
-                updateAdminNfcInputs(); 
-            } else {
-                document.getElementById('player-score-melyna').innerText = dbState.teams.MELYNA.score;
-                document.getElementById('player-score-raudona').innerText = dbState.teams.RAUDONA.score;
-                updateMapMarkers(dbState); 
-            }
-
-            handleTimers(dbState.game_state);
+        ['MELYNA', 'RAUDONA'].forEach(t => {
+            $('p-score-' + t).textContent = score(t);
+            $('stat-' + t).className = 'stat' + (t === myTeam ? ' me-' + TEAMS[t].cls : '');
         });
 
-        function updateMapMarkers(dbData) {
-            for(let i=1; i<=5; i++) {
-                let marker = document.getElementById(`marker-${i}`);
-                if(marker) marker.className = 'map-marker'; 
-            }
-
-            if (currentPhase === 2 || currentPhase === 3) {
-                if (dbData.active_points) {
-                    for (let pointId in dbData.active_points) {
-                        let pNum = pointId.split('_')[1];
-                        let marker = document.getElementById(`marker-${pNum}`);
-                        if(marker) {
-                            let scannedByUs = dbData.active_points[pointId][`scanned_${window.currentTeam}`];
-                            if (!scannedByUs) {
-                                marker.classList.add('marker-active');
-                            }
-                        }
-                    }
-                }
-            } 
-            else if (currentPhase === 4) {
-                if (dbData.phase4_points) {
-                    for (let i=1; i<=5; i++) {
-                        let pData = dbData.phase4_points[`point_${i}`];
-                        let marker = document.getElementById(`marker-${i}`);
-                        if(!marker) continue;
-                        
-                        if (pData.state === "unlocking") {
-                            marker.classList.add('marker-active'); 
-                        } else if (pData.state === "ready" || (pData.state === "unlocking" && pData.unlocksAt <= Date.now())) {
-                            marker.classList.add('marker-ready'); 
-                        } else if (pData.state === "claimed") {
-                            if (pData.claimedBy === "MELYNA") marker.classList.add('marker-claimed-melyna');
-                            if (pData.claimedBy === "RAUDONA") marker.classList.add('marker-claimed-raudona');
-                        }
-                    }
-                }
-            }
+        const res = $('p-result');
+        res.classList.toggle('hidden', st !== 'ended');
+        if (st === 'ended') {
+            const a = score('MELYNA'), b = score('RAUDONA');
+            const w = a === b ? null : (a > b ? 'MELYNA' : 'RAUDONA');
+            $('p-result-title').textContent = w ? `Laimėjo ${TEAMS[w].name.toLowerCase()} komanda` : 'Lygiosios';
+            $('p-result-title').style.color = w ? `var(--${TEAMS[w].cls})` : 'var(--ink)';
+            $('p-result-sub').textContent = w ? (w === myTeam ? 'Jūsų komanda laimėjo!' : 'Šį kartą nepavyko.') + ` Rezultatas ${a} : ${b} (mėlyna : raudona).` : `Abi komandos surinko po ${a} tšk.`;
         }
+        $('nfc-card').classList.toggle('hidden', st === 'ended');
 
-        function updateAdminNfcInputs() {
-            if (!dbState || !dbState.nfc_mapping) return;
-            for (let i = 1; i <= 5; i++) {
-                let input = document.getElementById(`nfc-input-${i}`);
-                if (input && document.activeElement !== input) {
-                    input.value = dbState.nfc_mapping[`point_${i}`] || "";
-                }
-            }
-        }
+        renderPoints(st, e, ph, r);
+    }
 
-        function formatTime(ms) {
-            let totalSec = Math.floor(ms / 1000);
-            let h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
-            let m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
-            let s = String(totalSec % 60).padStart(2, '0');
-            return `${h}:${m}:${s}`;
-        }
-
-        function updateTimeDisplays(timeStr) {
-            if (isAdmin) document.getElementById('admin-timer').innerText = timeStr;
-            else document.getElementById('player-timer').innerText = timeStr;
-        }
-
-        function updatePhaseDisplay(elapsedTimeMs, dbData) {
-            let minutesElapsed = elapsedTimeMs / 60000;
-            let displayHtml = "";
-
-            if (minutesElapsed < 10) {
-                currentPhase = 1; document.getElementById('phase-title').innerText = "1 ETAPAS: PASIRUOŠIMAS";
-                displayHtml = "<p>Užimkite pozicijas. Taškai neaktyvūs.</p>";
-            } 
-            else if (minutesElapsed >= 10 && minutesElapsed < 40) {
-                // PAKEISTA: Tekste įrašyta 4 tšk.
-                currentPhase = 2; document.getElementById('phase-title').innerText = "2 ETAPAS: APŠILIMAS (4 tšk.)";
-                displayHtml = generateActivePointsHtml(dbData.active_points);
-            }
-            else if (minutesElapsed >= 40 && minutesElapsed < 70) {
-                // PAKEISTA: Tekste įrašyta 4 tšk.
-                currentPhase = 3; document.getElementById('phase-title').innerText = "3 ETAPAS: TAKTIKA (4 tšk.)";
-                displayHtml = generateActivePointsHtml(dbData.active_points);
-            }
+    function renderPoints(st, e, ph, r) {
+        const live = st === 'running' || st === 'paused';
+        let title = 'Taškai', html = '<span class="muted">Taškų dar nėra</span>';
+        const cls = ['mk', '', '', '', '', ''];
+        const mk = new Array(6).fill('');
+        if (live && ph === 1) { title = 'Taškai'; html = '<span class="muted">Taškai neaktyvūs, užimkite pozicijas.</span>'; }
+        else if (live && ph <= 3) {
+            title = `Aktyvūs taškai · raundas ${r}`;
+            const sc = sched(r);
+            if (!sc) html = '<span class="muted">Laukiama naujų taškų...</span>';
             else {
-                // PAKEISTA: Tekste įrašyta 3 tšk.
-                currentPhase = 4; document.getElementById('phase-title').innerText = "4 ETAPAS: DOMINAVIMAS (3 tšk.)";
-                displayHtml = generatePhase4Html(dbData.phase4_points);
+                const ks = [sc.real, sc.decoy].filter(Boolean).sort();
+                html = '<div class="chips">' + ks.map(k => {
+                    const v = scanOf(r, k, myTeam);
+                    if (v === true) { mk[k] = 'done'; return `<span class="chip done"><i class="dot green"></i>Taškas ${k} · paimtas</span>`; }
+                    if (v === 'decoy') { mk[k] = ''; return `<span class="chip done"><i class="dot"></i>Taškas ${k} · netikras</span>`; }
+                    mk[k] = 'active';
+                    return `<span class="chip"><i class="dot ink"></i>Taškas ${k}</span>`;
+                }).join('') + '</div>';
             }
-            
-            let pointsContainer = document.getElementById('points-display');
-            pointsContainer.innerHTML = displayHtml;
-            if (currentPhase === 4) {
-                pointsContainer.className = "";
-            } else {
-                pointsContainer.className = "active-points-container";
-            }
-        }
-
-        function generateActivePointsHtml(activePoints) {
-            if (!activePoints) return "<p>Laukiama naujų taškų...</p>";
-            let html = "Aktyvūs taškai:<br>";
-            for (let pointId in activePoints) {
-                let pNum = pointId.split('_')[1];
-                let scannedByUs = activePoints[pointId][`scanned_${window.currentTeam}`];
-                let color = scannedByUs ? '#10b981' : '#fbbf24'; 
-                html += `<span style="display:inline-block; margin: 8px; padding: 5px 15px; background: rgba(31, 41, 55, 0.85); border: 2px solid ${color}; border-radius: 8px; font-size: 16px;">Taškas ${pNum}</span>`;
-            }
-            return html;
-        }
-
-        function generatePhase4Html(p4Points) {
-            if (!p4Points) return "";
-            let html = "<div class='phase4-list'>";
-            for (let i = 1; i <= 5; i++) {
-                let pointData = p4Points[`point_${i}`];
-                let statusText = "", statusClass = "";
-                if (pointData.state === "idle") {
-                    statusText = "🔒 Neaktyvuotas"; statusClass = "status-idle";
-                } else if (pointData.state === "unlocking") {
-                    let timeLeftToUnlock = pointData.unlocksAt - Date.now();
-                    if (timeLeftToUnlock > 0) {
-                        let m = Math.floor((timeLeftToUnlock % 3600000) / 60000);
-                        let s = Math.floor((timeLeftToUnlock % 60000) / 1000);
-                        statusText = `⏳ Atsirakina po ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-                        statusClass = "status-unlocking";
-                    } else {
-                        statusText = "🟢 ATRAKINTAS"; statusClass = "status-ready";
-                    }
-                } else if (pointData.state === "claimed") {
-                    statusText = `🚩 Užėmė ${pointData.claimedBy}`; statusClass = "status-claimed";
+        } else if (live) {
+            title = 'Dominavimo taškai';
+            html = [1, 2, 3, 4, 5].map(k => {
+                const p = p4(k); const t = now();
+                if (p.state === 'claimed') {
+                    const c = TEAMS[p.claimedBy] || { name: p.claimedBy, cls: '' };
+                    mk[k] = c.cls; return `<div class="row"><span>Taškas ${k}</span><span class="r"><i class="dot ${c.cls}"></i>Užėmė ${c.name.toLowerCase()}</span></div>`;
                 }
-                html += `<div class="phase4-item"><span>Taškas ${i}</span> <span class="${statusClass}">${statusText}</span></div>`;
-            }
-            return html + "</div>";
+                if (p.state === 'unlocking') {
+                    const left = p.unlocksAt - t;
+                    const by = ''; const ud = TEAMS[p.unlockedBy] ? TEAMS[p.unlockedBy].cls : 'ink';
+                    if (left > 0 && !(gs().status === 'paused')) { mk[k] = 'active'; return `<div class="row"><span>Taškas ${k}</span><span class="r"><i class="dot ${ud}"></i>Atsirakina po ${fmtMS(left)}${by}</span></div>`; }
+                    if (left > 0) { mk[k] = 'active'; return `<div class="row"><span>Taškas ${k}</span><span class="r"><i class="dot ${ud}"></i>Atsirakina po ${fmtMS(p.unlocksAt - gs().pause_time)}${by}</span></div>`; }
+                    mk[k] = 'ready'; return `<div class="row"><span>Taškas ${k}</span><span class="r go"><i class="dot green"></i>Atrakintas – skenuokite!</span></div>`;
+                }
+                return `<div class="row"><span>Taškas ${k}</span><span class="r"><i class="dot"></i>Neaktyvuotas</span></div>`;
+            }).join('');
+        } else if (st === 'ended') { title = 'Taškai'; html = '<span class="muted">Žaidimas baigtas.</span>'; }
+        $('p-points-title').textContent = title;
+        setHtml('p-points', html);
+        for (let k = 1; k <= 5; k++) $('mk' + k).className = 'mk ' + mk[k];
+    }
+
+    /* ---------- Pranešimai apie pokyčius ---------- */
+    function notifyChanges(st, ph, r) {
+        if (prev === null) { prev = { st, ph, r }; return; }
+        let msg = null, pat = 1;
+        if (st !== prev.st) {
+            if (st === 'running' && prev.st === 'stopped') msg = 'Žaidimas prasidėjo!';
+            else if (st === 'paused') msg = 'Žaidimas sustabdytas';
+            else if (st === 'running' && prev.st === 'paused') msg = 'Žaidimas tęsiamas';
+            else if (st === 'ended') { msg = 'Žaidimas baigtas!'; pat = 3; }
+            else if (st === 'stopped') msg = 'Žaidimas perkrautas';
+        } else if (st === 'running') {
+            if (ph === 4 && prev.ph !== 4) { msg = '4 etapas: dominavimas prasidėjo!'; pat = 2; }
+            else if (r !== prev.r && r > 0) { msg = `Naujas raundas ${r} – nauji aktyvūs taškai!`; pat = 2; }
         }
+        prev = { st, ph, r };
+        if (msg) { toast(msg); beep(pat); if (navigator.vibrate) navigator.vibrate(pat === 3 ? [250, 100, 250, 100, 500] : 250); }
+    }
 
-        async function checkAutoRounds(elapsedTimeMs) {
-            if (!dbState || !dbState.game_state) return;
-            let elapsedMinutes = Math.floor(elapsedTimeMs / 60000);
-            let expectedRound = 0;
-            
-            if (elapsedMinutes >= 10 && elapsedMinutes < 20) expectedRound = 1;
-            else if (elapsedMinutes >= 20 && elapsedMinutes < 30) expectedRound = 2;
-            else if (elapsedMinutes >= 30 && elapsedMinutes < 40) expectedRound = 3;
-            else if (elapsedMinutes >= 40 && elapsedMinutes < 50) expectedRound = 4;
-            else if (elapsedMinutes >= 50 && elapsedMinutes < 60) expectedRound = 5;
-            else if (elapsedMinutes >= 60 && elapsedMinutes < 70) expectedRound = 6;
-            else if (elapsedMinutes >= 70) expectedRound = 7; 
+    /* ---------- Žaidėjo NFC ---------- */
+    let ndef = null;
+    async function startNfc() {
+        if (!myTeam) return;
+        if (!('NDEFReader' in window)) { toast('NFC nepalaikomas. Naudokite Chrome telefone su Android ir HTTPS.', true); return; }
+        try {
+            if (!ndef) {
+                ndef = new NDEFReader();
+                await ndef.scan();
+                ndef.addEventListener('reading', ev => handleScan(ev.serialNumber));
+                ndef.addEventListener('readingerror', () => toast('Nepavyko perskaityti tago, bandykite dar kartą', true));
+            }
+            $('nfc-dot').className = 'dot green';
+            $('nfc-status').textContent = 'NFC skaitytuvas aktyvus – glauskite telefoną prie tago';
+            $('start-nfc-btn').disabled = true; $('start-nfc-btn').textContent = 'NFC aktyvus';
+        } catch (err) { ndef = null; toast('NFC klaida: ' + err.message, true); }
+    }
 
-            if (expectedRound > 0 && dbState.game_state.current_round < expectedRound) {
-                if (window.isGenerating) return; 
-                window.isGenerating = true;
+    const nfcDefault = () => { $('nfc-dot').className = 'dot'; };
+    function fail(msg) { toast(msg, true); if (navigator.vibrate) navigator.vibrate([100, 60, 100]); }
+    function good(msg) { toast(msg, false, true); beep(2); if (navigator.vibrate) navigator.vibrate(300); }
+    function findPoint(uid) {
+        for (const [pid, u] of Object.entries(D.nfc_mapping || {})) if (u && String(u).toLowerCase() === uid) return pid;
+        return null;
+    }
+    function logEvent(msg) { db.ref('log').push({ t: firebase.database.ServerValue.TIMESTAMP, msg }); }
+    function addScore(team, pts) { db.ref('teams/' + team + '/score').transaction(c => Math.max(0, (c || 0) + pts)); }
 
-                const updates = {};
-                updates['game_state/current_round'] = expectedRound;
+    let lastScan = { uid: '', at: 0 };
+    function handleScan(raw) {
+        const uid = String(raw || '').toLowerCase(), t = Date.now();
+        if (uid === lastScan.uid && t - lastScan.at < 2500) { lastScan.at = t; return; }   // tagas laikomas prie telefono
+        lastScan = { uid, at: t };
+        if (!myTeam) return fail('Pirma pasirinkite komandą');
+        const st = status();
+        if (st === 'ended') return fail('Laikas baigėsi – skenuoti nebegalima');
+        if (st === 'paused') return fail('Žaidimas sustabdytas');
+        if (st !== 'running') return fail('Žaidimas dar nepradėtas');
+        const pid = findPoint(uid);
+        if (!pid) return fail('Neatpažintas NFC tagas');
+        const k = +pid.split('_')[1], e = elapsedMs(), ph = phaseOf(e);
+        if (ph === 1) return fail('Taškai dar neaktyvūs – laukite pirmo raundo');
+        if (ph <= 3) return scanRound(k, roundOf(e));
+        return scanDominion(k);
+    }
 
-                if (expectedRound >= 1 && expectedRound <= 3) {
-                    let rp = [1, 2, 3, 4, 5].sort(() => 0.5 - Math.random())[0];
-                    updates['active_points'] = {
-                        [`point_${rp}`]: { is_decoy: false, scanned_MELYNA: false, scanned_RAUDONA: false }
+    function scanRound(k, r) {
+        const sc = sched(r);
+        if (!sc) return fail('Taškų sąrašas dar negautas, bandykite dar kartą');
+        if (k !== sc.real && k !== sc.decoy) return fail(`Taškas ${k} šiuo metu neaktyvus`);
+        const leaf = db.ref(`scans/r${r}/point_${k}/${myTeam}`);
+        if (k === sc.decoy) {
+            leaf.transaction(c => c === null ? 'decoy' : undefined);
+            logEvent(`${TEAMS[myTeam].name} nuskenavo netikrą tašką ${k}`);
+            return fail('Netikras taškas! Čia taškų nėra');
+        }
+        leaf.transaction(c => c === true ? undefined : true, (err, ok) => {
+            if (err) return fail('Klaida: ' + err.message);
+            if (!ok) return fail('Šį tašką jau pasiėmėte');
+            addScore(myTeam, CFG.ptsReal);
+            logEvent(`${TEAMS[myTeam].name} paėmė tašką ${k} (+${CFG.ptsReal})`);
+            good(`Taškas ${k} – gavote ${CFG.ptsReal} tšk.!`);
+        }, false);
+    }
+
+    function scanDominion(k) {
+        let outcome = null, leftMs = 0, owner = '';
+        db.ref('phase4_points/point_' + k).transaction(cur => {
+            const p = Object.assign({ state: 'idle', unlocksAt: 0, claimedBy: '' }, cur || {});
+            const t = now();
+            if (p.state === 'idle') { outcome = 'unlock'; p.state = 'unlocking'; p.unlocksAt = t + CFG.unlock; p.unlockedBy = myTeam; return p; }
+            if (p.state === 'unlocking') {
+                if (t < p.unlocksAt) { outcome = 'early'; leftMs = p.unlocksAt - t; return undefined; }
+                outcome = 'claim'; p.state = 'claimed'; p.claimedBy = myTeam; return p;
+            }
+            outcome = 'late'; owner = p.claimedBy; return undefined;
+        }, (err, ok) => {
+            if (err) return fail('Klaida: ' + err.message);
+            if (outcome === 'unlock' && ok) { logEvent(`${TEAMS[myTeam].name} pradėjo atrakinti tašką ${k}`); good(`Taškas ${k} atsirakina – saugokite jį 5 min.`); }
+            else if (outcome === 'claim' && ok) { addScore(myTeam, CFG.ptsClaim); logEvent(`${TEAMS[myTeam].name} užėmė tašką ${k} (+${CFG.ptsClaim})`); good(`Taškas ${k} užimtas – gavote ${CFG.ptsClaim} tšk.!`); }
+            else if (outcome === 'early') fail(`Dar per anksti – atsirakins po ${fmtMS(leftMs)}`);
+            else if (outcome === 'late') fail(`Per vėlu – tašką užėmė ${TEAMS[owner] ? TEAMS[owner].name.toLowerCase() : owner}`);
+            else fail('Nepavyko, bandykite dar kartą');
+        }, false);
+    }
+
+    function selectTeam(t) {
+        myTeam = t; try { localStorage.setItem('lt_team', t); } catch (e) {}
+        shown = null; render();
+    }
+    function changeTeam() {
+        askConfirm({ title: 'Keisti komandą?', text: 'Pasirinkite komandą iš naujo.', okText: 'Taip, keisti', onOk: () => {
+            try { localStorage.removeItem('lt_team'); } catch (e) {}
+            myTeam = null; document.body.classList.remove('team-red', 'team-blue'); shown = null; render();
+        } });
+    }
+    function mapFail() { $('map-img').classList.add('hidden'); $('map-fallback').classList.remove('hidden'); }
+
+    /* ---------- Admin ---------- */
+    function renderAdmin(st, e, ph, r) {
+        show('s-admin');
+        const map = { stopped: ['', 'Sustabdytas'], running: ['green', 'Žaidimas vyksta'], paused: ['ink', 'Pauzė'], ended: ['red', 'Žaidimas baigtas'] };
+        $('a-dot').className = 'dot ' + map[st][0]; $('a-status').textContent = map[st][1];
+        $('a-time').textContent = fmtHMS(st === 'stopped' ? CFG.total : CFG.total - e);
+        $('a-phase').textContent = (st === 'running' || st === 'paused') ? phaseTitle(st, ph) : '';
+        const main = $('a-main');
+        main.textContent = st === 'running' ? 'Pauzė' : st === 'paused' ? 'Tęsti žaidimą' : 'Pradėti žaidimą';
+        main.className = 'btn ' + (st === 'running' ? '' : 'btn-primary');
+        main.disabled = st === 'ended';
+        $('a-score-MELYNA').textContent = score('MELYNA'); $('a-score-RAUDONA').textContent = score('RAUDONA');
+
+        let rh = '<span class="muted">Žaidimas nevyksta</span>';
+        if (st === 'running' || st === 'paused') {
+            if (ph === 1) rh = `<span class="muted">Pasiruošimas, pirmas taškas už ${fmtMS(CFG.prep - e)}</span>`;
+            else if (ph <= 3) {
+                const sc = sched(r);
+                if (!sc) rh = '<span class="muted">Schema nerasta</span>';
+                else {
+                    const row = (k, label) => {
+                        const m = scanOf(r, k, 'MELYNA'), ra = scanOf(r, k, 'RAUDONA');
+                        const tag = v => v === true ? 'paėmė' : v === 'decoy' ? 'bandė' : '—';
+                        return `<div class="row"><span>Taškas ${k} · ${label}</span><span class="r"><i class="dot blue"></i>${tag(m)} &nbsp; <i class="dot red"></i>${tag(ra)}</span></div>`;
                     };
-                } 
-                else if (expectedRound >= 4 && expectedRound <= 6) {
-                    let sel = [1, 2, 3, 4, 5].sort(() => 0.5 - Math.random()).slice(0, 2);
-                    let decoyIndex = Math.random() < 0.5 ? 0 : 1;
-                    updates['active_points'] = {
-                        [`point_${sel[0]}`]: { is_decoy: (decoyIndex === 0), scanned_MELYNA: false, scanned_RAUDONA: false },
-                        [`point_${sel[1]}`]: { is_decoy: (decoyIndex === 1), scanned_MELYNA: false, scanned_RAUDONA: false }
-                    };
+                    rh = `<p class="muted small" style="margin-bottom:8px;">Raundas ${r} iš 6 · kitas už ${fmtMS(CFG.prep + r * CFG.round - e)}</p>` + row(sc.real, 'tikras') + (sc.decoy ? row(sc.decoy, 'netikras') : '');
                 }
-                else if (expectedRound === 7) {
-                    updates['active_points'] = null;
-                }
-
-                try { await update(ref(db), updates); } catch(e) { console.error("Klaida", e); }
-                setTimeout(() => { window.isGenerating = false; }, 3000);
-            }
+            } else rh = [1, 2, 3, 4, 5].map(k => {
+                const p = p4(k); let txt = 'Neaktyvuotas', dot = '';
+                if (p.state === 'claimed') { txt = 'Užėmė ' + (TEAMS[p.claimedBy] ? TEAMS[p.claimedBy].name.toLowerCase() : p.claimedBy); dot = TEAMS[p.claimedBy] ? TEAMS[p.claimedBy].cls : ''; }
+                else if (p.state === 'unlocking') { const l = p.unlocksAt - now(); txt = l > 0 ? `Atsirakina po ${fmtMS(st === 'paused' ? p.unlocksAt - gs().pause_time : l)}` : 'Atrakintas'; dot = 'ink'; }
+                return `<div class="row"><span>Taškas ${k}</span><span class="r"><i class="dot ${dot}"></i>${txt}</span></div>`;
+            }).join('');
         }
+        setHtml('a-round', rh);
+        updateAdminNfcInputs();
+    }
+    function renderLog() {
+        const keys = Object.keys(logData).sort().reverse();
+        if (!keys.length) return setHtml('a-log', '<span class="muted">Kol kas tuščia</span>');
+        setHtml('a-log', keys.map(k => {
+            const l = logData[k]; const d = new Date(l.t || 0);
+            const ts = d.toLocaleTimeString('lt-LT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            return `<div><span>${ts}</span>${esc(l.msg)}</div>`;
+        }).join(''));
+    }
+    const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-        function handleTimers(state) {
-            clearInterval(timerInterval);
-
-            if (state.status === "stopped") {
-                isTimeUp = false; // Resetuojame laiko būseną
-                updateTimeDisplays("01:45:00");
-                if (isAdmin) {
-                    let st = document.getElementById('game-status'); st.innerText = "SUSTABDYTAS"; st.style.color = "#ef4444";
-                } else {
-                    document.getElementById('points-display').innerHTML = "<p>Žaidimas nevyksta</p>";
-                    document.getElementById('phase-title').innerText = "LAUKIAMA STARTO";
-                }
-            } 
-            else if (state.status === "running") {
-                if (isAdmin) {
-                    let st = document.getElementById('game-status'); st.innerText = "ŽAIDIMAS VYKSTA"; st.style.color = "#10b981";
-                }
-                
-                timerInterval = setInterval(() => {
-                    let elapsedTime = Date.now() - (state.start_time + state.total_paused_ms);
-                    let timeLeft = totalGameTimeMs - elapsedTime;
-                    
-                    // PAKEISTA: Tikrinama, ar baigėsi laikas
-                    if(timeLeft <= 0) {
-                        timeLeft = 0;
-                        isTimeUp = true;
-                        clearInterval(timerInterval);
-                    } else {
-                        isTimeUp = false;
-                    }
-                    
-                    updateTimeDisplays(formatTime(timeLeft));
-                    checkAutoRounds(elapsedTime);
-                    
-                    if (!isAdmin) {
-                        updatePhaseDisplay(elapsedTime, dbState);
-                        updateMapMarkers(dbState); 
-                    }
-                }, 1000);
-            }
-            else if (state.status === "paused") {
-                let elapsedTime = state.pause_time - (state.start_time + state.total_paused_ms);
-                let timeLeft = totalGameTimeMs - elapsedTime;
-                updateTimeDisplays(formatTime(timeLeft));
-                if (isAdmin) {
-                    let st = document.getElementById('game-status'); st.innerText = "PAUZĖ"; st.style.color = "#f59e0b";
-                } else {
-                    document.getElementById('points-display').innerHTML = "<p style='color:#fbbf24'>PAUZĖ</p>";
-                }
-            }
+    function adminMain() {
+        const st = status();
+        if (st === 'stopped') {
+            askConfirm({ title: 'Pradėti žaidimą?', text: 'Laikas pradės tekėti visiems telefonams ir bus sugeneruoti visų raundų taškai.', okText: 'Pradėti', onOk: () => {
+                const schedule = makeSchedule();
+                db.ref('game_state').transaction(c => {
+                    if (c && c.status && c.status !== 'stopped') return undefined;
+                    return { status: 'running', start_time: now(), pause_time: 0, total_paused_ms: 0, schedule };
+                }, (err, ok) => { if (!ok) toast('Žaidimas jau vyksta', true); });
+            } });
+        } else if (st === 'running') {
+            db.ref('game_state').transaction(c => (c && c.status === 'running') ? Object.assign({}, c, { status: 'paused', pause_time: now() }) : undefined);
+        } else if (st === 'paused') {
+            let delta = 0;
+            db.ref('game_state').transaction(c => {
+                if (!c || c.status !== 'paused') return undefined;
+                delta = now() - c.pause_time;
+                return Object.assign({}, c, { status: 'running', total_paused_ms: (c.total_paused_ms || 0) + delta });
+            }, (err, ok) => {
+                if (!ok) return;
+                // Pauzės metu sustoja ir taškų atsirakinimo laikmačiai
+                const upd = {};
+                Object.entries(D.phase4_points || {}).forEach(([k, p]) => { if (p && p.state === 'unlocking') upd[`phase4_points/${k}/unlocksAt`] = p.unlocksAt + delta; });
+                if (Object.keys(upd).length) db.ref().update(upd);
+            }, false);
         }
+    }
+    function adminReset() {
+        askConfirm({ title: 'Perkrauti žaidimą?', text: 'Visi laikai, balai ir taškų būsenos bus išvalyti. NFC kodai liks.', word: 'PERKRAUTI', okText: 'Perkrauti', danger: true, onOk: () => {
+            const upd = {
+                game_state: DEF_GS, scans: null, log: null, phase4_points: freshP4(),
+                'teams/MELYNA/score': 0, 'teams/RAUDONA/score': 0
+            };
+            db.ref().update(upd).then(() => toast('Žaidimas perkrautas')).catch(e => toast(e.message, true));
+        } });
+    }
+    function adminSkip() {
+        const st = status();
+        if (st !== 'running' && st !== 'paused') { toast('Žaidimas nevyksta', true); return; }
+        askConfirm({ title: 'Praleisti 10 minučių?', text: 'Skirta testavimui: žaidimo laikas pastumiamas pirmyn. Realaus žaidimo metu nenaudokite.', okText: 'Taip, praleisti', onOk: () => {
+            db.ref('game_state/start_time').transaction(c => (c || 0) - 10 * MIN);
+        } });
+    }
+    function adjustScore(team, d) {
+        db.ref('teams/' + team + '/score').transaction(c => Math.max(0, (c || 0) + d));
+        logEvent(`GM: ${TEAMS[team].name} ${d > 0 ? '+' : '−'}${Math.abs(d)} tšk.`);
+    }
 
-        // ==========================================
-        //               ŽAIDĖJO SKENAVIMAS
-        // ==========================================
-        if (!isAdmin) {
-            let playerNdef = null; 
-
-            document.getElementById('start-nfc-btn').addEventListener('click', async () => {
-                if (!window.currentTeam) { alert("Pirma pasirinkite komandą!"); return; }
-                if ("NDEFReader" in window) {
-                    try {
-                        if (!playerNdef) {
-                            playerNdef = new NDEFReader();
-                            await playerNdef.scan();
-                            playerNdef.addEventListener("reading", ({ serialNumber }) => {
-                                handleNfcScan(serialNumber.toLowerCase());
-                            });
-                        }
-                        document.getElementById('nfc-status').innerText = "NFC SKAITYTUVAS AKTYVUS. Glauskite telefoną.";
-                        document.getElementById('nfc-status').style.color = "#10b981";
-                    } catch (error) { alert("NFC Klaida: " + error.message); }
-                } else { alert("NFC nepalaikomas šioje naršyklėje."); }
-            });
-
-            async function handleNfcScan(nfcUid) {
-                // PAKEISTA: Papildoma sąlyga apsaugai pasibaigus laikui
-                if (isTimeUp) {
-                    alert("Laikas baigėsi! Žaidimas baigtas, skenuoti nebegalima.");
-                    return;
-                }
-
-                if (dbState.game_state.status !== "running") { alert("Žaidimas šiuo metu sustabdytas!"); return; }
-
-                let foundPointId = null;
-                for (const [pId, mappedUid] of Object.entries(dbState.nfc_mapping)) {
-                    if (mappedUid && mappedUid.toLowerCase() === nfcUid) { foundPointId = pId; break; }
-                }
-                if (!foundPointId) { alert("Neatpažintas NFC tagas!"); return; }
-
-                const updates = {};
-                const pNum = foundPointId.split('_')[1];
-
-                if (currentPhase === 2 || currentPhase === 3) {
-                    let activeData = dbState.active_points ? dbState.active_points[foundPointId] : null;
-                    if (!activeData) { alert(`Taškas ${pNum} šiuo metu nėra aktyvus!`); return; }
-                    if (activeData.is_decoy) { alert("⚠️ NETIKRAS TAŠKAS! Čia taškų nėra!"); return; }
-                    if (activeData[`scanned_${window.currentTeam}`]) { alert("Jau pasiėmėte šį tašką!"); return; }
-
-                    // PAKEISTA: Balai pakeisti į 4
-                    let pts = 4;
-                    updates[`teams/${window.currentTeam}/score`] = increment(pts);
-                    updates[`active_points/${foundPointId}/scanned_${window.currentTeam}`] = true;
-                    await update(ref(db), updates);
-                    alert(`Puiku! Nuskenuotas Taškas ${pNum}. Gavote ${pts} tšk!`);
-                } 
-                else if (currentPhase === 4) {
-                    let p4Data = dbState.phase4_points[foundPointId];
-                    if (p4Data.state === "idle") {
-                        updates[`phase4_points/${foundPointId}/state`] = "unlocking";
-                        updates[`phase4_points/${foundPointId}/unlocksAt`] = Date.now() + (5 * 60 * 1000);
-                        await update(ref(db), updates);
-                        alert(`Taškas ${pNum} pradėtas atidaryti! Saugokite jį 5 min.`);
-                    } 
-                    else if (p4Data.state === "unlocking") {
-                        if (p4Data.unlocksAt - Date.now() > 0) alert("Dar per anksti! Taškas atsirakinėja.");
-                        else {
-                            updates[`phase4_points/${foundPointId}/state`] = "claimed";
-                            updates[`phase4_points/${foundPointId}/claimedBy`] = window.currentTeam;
-                            // PAKEISTA: Balai pakeisti į 3
-                            updates[`teams/${window.currentTeam}/score`] = increment(3);
-                            await update(ref(db), updates);
-                            alert(`PERGALĖ! Taškas ${pNum} užimtas. Gavote 3 tšk!`);
-                        }
-                    }
-                    else if (p4Data.state === "claimed") alert(`Per vėlu, užėmė ${p4Data.claimedBy}!`);
-                } else alert("Šiame etape taškų rinkti negalima.");
+    /* ---------- Admin NFC priskyrimas ---------- */
+    (function buildNfcRows() {
+        if (!isAdmin) return;
+        let h = '';
+        for (let i = 1; i <= 5; i++) h += `<div class="nfc-row"><label for="nfc-input-${i}">Taškas ${i}</label><input type="text" id="nfc-input-${i}" placeholder="UID" autocomplete="off"><button class="btn btn-sm" id="nfc-btn-${i}" onclick="adminScan(${i})">Skenuoti</button></div>`;
+        $('nfc-inputs').innerHTML = h;
+    })();
+    function updateAdminNfcInputs() {
+        const m = D.nfc_mapping || {};
+        for (let i = 1; i <= 5; i++) { const el = $('nfc-input-' + i); if (el && document.activeElement !== el) el.value = m['point_' + i] || ''; }
+    }
+    let adminNdef = null, pendingPoint = null;
+    function resetScanBtns() { for (let i = 1; i <= 5; i++) $('nfc-btn-' + i).textContent = 'Skenuoti'; }
+    async function adminScan(i) {
+        if (!('NDEFReader' in window)) { toast('NFC nepalaikomas šioje naršyklėje', true); return; }
+        try {
+            if (!adminNdef) {
+                adminNdef = new NDEFReader();
+                await adminNdef.scan();
+                adminNdef.onreading = ev => {
+                    if (!pendingPoint) return;
+                    const uid = ev.serialNumber.toLowerCase(), p = pendingPoint; pendingPoint = null;
+                    assignUid(p, uid); resetScanBtns();
+                };
             }
+            resetScanBtns(); pendingPoint = i; $('nfc-btn-' + i).textContent = 'Priglauskite...';
+        } catch (err) { toast('NFC klaida: ' + err.message, true); }
+    }
+    function assignUid(i, uid) {
+        const m = D.nfc_mapping || {};
+        for (const [pid, u] of Object.entries(m)) if (pid !== 'point_' + i && u && String(u).toLowerCase() === uid) { toast(`Šis tagas jau priskirtas taškui ${pid.split('_')[1]}`, true); return false; }
+        $('nfc-input-' + i).value = uid;
+        db.ref('nfc_mapping/point_' + i).set(uid).then(() => toast(`Taškas ${i}: tagas išsaugotas`, false, true));
+        return true;
+    }
+    function saveNfc() {
+        const vals = {}, seen = {};
+        for (let i = 1; i <= 5; i++) {
+            const v = $('nfc-input-' + i).value.trim().toLowerCase();
+            if (v && seen[v]) { toast(`Taškai ${seen[v]} ir ${i} turi tą patį kodą`, true); return; }
+            if (v) seen[v] = i;
+            vals['point_' + i] = v || null;
         }
+        db.ref('nfc_mapping').set(Object.fromEntries(Object.entries(vals).filter(([, v]) => v))).then(() => toast('Pakeitimai išsaugoti', false, true));
+    }
 
-        // ==========================================
-        //               ADMIN LOGIKA
-        // ==========================================
-        if (isAdmin) {
-            document.getElementById('btn-start').addEventListener('click', async () => {
-                let state = dbState.game_state;
-                const updates = {};
-                if (state.status === "stopped") {
-                    updates['game_state/start_time'] = Date.now();
-                    updates['game_state/total_paused_ms'] = 0;
-                    updates['game_state/status'] = "running";
-                } else if (state.status === "paused") {
-                    updates['game_state/total_paused_ms'] = state.total_paused_ms + (Date.now() - state.pause_time);
-                    updates['game_state/status'] = "running";
-                }
-                if (Object.keys(updates).length > 0) await update(ref(db), updates);
-            });
-
-            document.getElementById('btn-pause').addEventListener('click', async () => {
-                if (dbState.game_state.status === "running") {
-                    await update(ref(db), { 'game_state/status': "paused", 'game_state/pause_time': Date.now() });
-                }
-            });
-
-            document.getElementById('btn-reset').addEventListener('click', async () => {
-                if (confirm("AR TIKRAI NORITE PERKRAUTI VISĄ ŽAIDIMĄ? Visi laikai ir taškai anuliuosis.")) {
-                    const updates = {
-                        'game_state/status': "stopped", 'game_state/start_time': 0, 'game_state/pause_time': 0, 'game_state/total_paused_ms': 0,
-                        'game_state/current_round': 0, 
-                        'teams/MELYNA/score': 0, 'teams/RAUDONA/score': 0, 'active_points': null
-                    };
-                    for (let i = 1; i <= 5; i++) {
-                        updates[`phase4_points/point_${i}/state`] = "idle";
-                        updates[`phase4_points/point_${i}/unlocksAt`] = 0;
-                        updates[`phase4_points/point_${i}/claimedBy`] = "";
-                    }
-                    await update(ref(db), updates);
-                    alert("Žaidimas sėkmingai perkrautas!");
-                }
-            });
-
-            window.adjustScore = async function(team, amount) { await update(ref(db), { [`teams/${team}/score`]: increment(amount) }); };
-
-            const nfcContainer = document.getElementById('nfc-inputs');
-            for (let i = 1; i <= 5; i++) {
-                nfcContainer.innerHTML += `
-                    <div class="nfc-row">
-                        <label>TAŠKAS ${i}:</label>
-                        <input type="text" id="nfc-input-${i}" placeholder="Laukiama UID...">
-                        <button class="btn-scan-admin" data-point="${i}">Nuskaityti</button>
-                    </div>`;
+    /* ---------- Garsas, ekrano budėjimas ---------- */
+    let audioCtx = null;
+    function unlockAudio() {
+        try {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            if (audioCtx.state === 'running') $('sound-hint').classList.add('hidden');
+        } catch (e) {}
+        keepAwake();
+    }
+    function beep(n) {
+        if (!audioCtx || audioCtx.state !== 'running') return;
+        for (let i = 0; i < n; i++) {
+            const t0 = audioCtx.currentTime + i * 0.28;
+            const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+            o.frequency.value = 880; o.connect(g); g.connect(audioCtx.destination);
+            g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.3, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2);
+            o.start(t0); o.stop(t0 + 0.22);
+        }
+    }
+    document.addEventListener('pointerdown', unlockAudio);
+    $('sound-hint').classList.remove('hidden');
+    let wake = null;
+    async function keepAwake() {
+        try {
+            if (!isAdmin && 'wakeLock' in navigator && document.visibilityState === 'visible' && !wake) {
+                wake = await navigator.wakeLock.request('screen');
+                wake.addEventListener('release', () => { wake = null; });
             }
+        } catch (e) {}
+    }
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
+    keepAwake();
 
-            let adminNdef = null;
-            document.addEventListener('click', async (e) => {
-                if (e.target && e.target.classList.contains('btn-scan-admin')) {
-                    const pointNum = e.target.getAttribute('data-point');
-                    if ("NDEFReader" in window) {
-                        try {
-                            if (!adminNdef) {
-                                adminNdef = new NDEFReader();
-                                await adminNdef.scan();
-                            }
-                            document.querySelectorAll('.btn-scan-admin').forEach(btn => {
-                                btn.innerText = "Nuskaityti"; btn.style.backgroundColor = "#3b82f6";
-                            });
+    /* ---------- Toast ir patvirtinimo langas ---------- */
+    let toastTimer = null;
+    function toast(msg, isErr, isGood) {
+        const el = $('toast');
+        el.textContent = msg; el.className = (isErr ? 'err ' : isGood ? 'good ' : '') + 'show';
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => { el.className = isErr ? 'err' : isGood ? 'good' : ''; }, 4000);
+    }
+    const norm = x => (x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toUpperCase();
+    let confirmOpts = null;
+    function askConfirm(opts) {
+        confirmOpts = opts;
+        $('cm-title').textContent = opts.title; $('cm-text').textContent = opts.text || '';
+        $('cm-ok').textContent = opts.okText || 'Taip';
+        $('cm-ok').className = 'btn ' + (opts.danger ? 'btn-danger-solid' : 'btn-primary');
+        $('cm-typebox').classList.toggle('hidden', !opts.word);
+        $('cm-input').value = '';
+        if (opts.word) $('cm-hint').textContent = `Patvirtinimui įrašykite: ${opts.word}`;
+        $('confirm-modal').classList.remove('hidden');
+        if (opts.word) $('cm-input').focus();
+    }
+    function closeConfirm() { $('confirm-modal').classList.add('hidden'); confirmOpts = null; }
+    function confirmOk() {
+        if (!confirmOpts) return;
+        if (confirmOpts.word && norm($('cm-input').value) !== norm(confirmOpts.word)) { toast('Neteisingas patvirtinimo žodis', true); return; }
+        const fn = confirmOpts.onOk; closeConfirm(); fn();
+    }
 
-                            e.target.innerText = "Priglauskite..."; e.target.style.backgroundColor = "#f59e0b";
-                            
-                            adminNdef.onreading = async ({ serialNumber }) => {
-                                const uid = serialNumber.toLowerCase();
-                                document.getElementById(`nfc-input-${pointNum}`).value = uid;
-                                e.target.innerText = "Sėkmingai!"; e.target.style.backgroundColor = "#10b981";
-                                
-                                const updates = {};
-                                updates[`nfc_mapping/point_${pointNum}`] = uid;
-                                await update(ref(db), updates);
-                                adminNdef.onreading = null;
-                                
-                                setTimeout(() => {
-                                    e.target.innerText = "Nuskaityti"; e.target.style.backgroundColor = "#3b82f6";
-                                }, 3000);
-                            };
-                        } catch (err) {
-                            alert("Klaida įjungiant NFC: " + err.message);
-                            e.target.innerText = "Nuskaityti";
-                        }
-                    } else { alert("NFC nepalaikomas."); }
-                }
-            });
-
-            document.getElementById('btn-save-nfc').addEventListener('click', async () => {
-                const updates = {};
-                for (let i = 1; i <= 5; i++) {
-                    let val = document.getElementById(`nfc-input-${i}`).value.trim().toLowerCase();
-                    if (val) updates[`nfc_mapping/point_${i}`] = val;
-                }
-                await update(ref(db), updates);
-                alert("Pakeitimai išsaugoti!");
-            });
-        }
-    </script>
+    if (!isAdmin && !('NDEFReader' in window)) { $('nfc-status').textContent = 'NFC nepalaikomas – naudokite Chrome su Android'; }
+</script>
 </body>
 </html>
